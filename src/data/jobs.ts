@@ -57,7 +57,7 @@ export const JOB_TEMPLATES: JobTemplate[] = [
   // --- Ranch work ---------------------------------------------------------------------------
   T({ id: 'cattle_drive', title: 'Pen the strays', kind: 'cattle', risk: 'honest', skill: 'riding', faction: 'ranchers', xp: 12, minutes: 4,
     blurb: 'Some steers broke through the wire. Ride round behind them and push them back through the corral gate.',
-    pay: { base: 0.3, perUnit: 0.12 }, cattle: { head: [4, 6], limitMinutes: 240, spawnTiles: 26 } }),
+    pay: { base: 0.3, perUnit: 0.11 }, cattle: { head: [4, 6], limitMinutes: 240, spawnTiles: 26 } }),
   T({ id: 'mend_fences', title: 'Mend the corral fence', kind: 'chores', risk: 'honest', skill: 'survival', faction: 'ranchers', xp: 8, minutes: 3.5,
     blurb: 'Rails are down all along the corral. Flags mark the bad sections — nail them back up.',
     pay: { base: 0.2, perUnit: 0.1 }, chores: { objs: ['FenceH', 'FenceV'], count: 4, strikes: 2, task: 'mend', label: 'Mend fence', limitMinutes: 240 } }),

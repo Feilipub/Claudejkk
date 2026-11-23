@@ -36,7 +36,7 @@ function economyAt(honor = 0): Economy {
 test('jobPay at a neutral context equals base + perUnit × units + perTile × tiles', () => {
   const t = tpl('freight');
   assert.equal(jobPay(t, 1, 200, NEUTRAL), Math.round((0.15 + 0.0014 * 200) * 100) / 100);
-  assert.equal(basePay(tpl('cattle_drive'), 5, 0), 0.3 + 0.12 * 5);
+  assert.ok(Math.abs(basePay(tpl('cattle_drive'), 5, 0) - (0.3 + 0.11 * 5)) < 1e-9);
 });
 
 test('payMultiplier: skill adds skillStep per level above 1 and is capped at level 6', () => {

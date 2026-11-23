@@ -335,10 +335,13 @@ export class Npc extends Entity {
         break;
       }
       case 'field': {
-        let pool = spots.filter((s) => s.kind === 'work' && !s.buildingId);
-        if (!pool.length) pool = of('corral', 'trough');
+        const pool = spots.filter((s) => s.kind === 'work' && !s.buildingId);
         if (pool.length) r = px(pick(pool, 'field' + idx), true);
-        else r = px(pick(tp.doorfronts.filter((d) => d.type === 'barn' || d.type === 'stable'), 'field'), true);
+        else if (block.act === 'hoe') {
+          // No fields in town: tend a kitchen garden in front of a house.
+          const gardens = tp.doorfronts.filter((d) => d.type === 'house' || d.type === 'cabin' || d.type === 'ranchhouse' || d.type === 'shack');
+          r = px(pick(gardens, 'garden'), true) ?? px(pick(of('corral', 'trough'), 'field' + idx), true);
+        } else r = px(pick(of('corral', 'trough'), 'field' + idx), true) ?? px(pick(tp.doorfronts.filter((d) => d.type === 'barn' || d.type === 'stable'), 'field'), true);
         break;
       }
       case 'corral': {
@@ -355,7 +358,8 @@ export class Npc extends Entity {
         break;
       }
       case 'street': {
-        const pool: { x: number; y: number }[] = [...of('street'), ...tp.doorfronts];
+        // Drunks weave down the main street near the saloon; everyone else uses the whole town.
+        const pool: { x: number; y: number }[] = block.act === 'stagger' ? [...of('street'), ...tp.doorfronts.filter((d) => d.type === 'saloon' || d.type === 'hotel')] : [...of('street'), ...tp.doorfronts];
         const step = block.act === 'stroll' || block.act === 'loiter' ? Math.floor(game.clock.minutes / 45) : 0;
         // Children pick the same play street each day, so they can find each other.
         const salt = block.act === 'play' ? null : `st${idx}:${day}:${step}`;
@@ -836,7 +840,8 @@ export class Npc extends Entity {
       const zt = (game.time * 0.6 + (hashString(this.id) % 10) * 0.1) % 1;
       r.text(this.x + 4 + zt * 4, this.y - top + 4 - zt * 8, 'z', 'rgba(220,230,255,' + (1 - zt).toFixed(2) + ')');
     }
-    if (this.bubble) game.ui.worldBubble(this.x, this.y - top - 2, this.bubble.text, this.name);
+    // Voices behind a closed roof stay inside: only show bubbles the player could actually see.
+    if (this.bubble && (this.outdoors || game.world.insideBuilding(this.x, this.y) === r.insideBuilding)) game.ui.worldBubble(this.x, this.y - top - 2, this.bubble.text, this.name);
     if (this.hostile && this.state !== 'dead' && this.state !== 'surrender' && this.state !== 'hogtied') r.rect(this.x - 1, this.y - top - 3, 2, 2, '#d83a2a');
     else if (this.state !== 'dead') {
       const m = game.npcMarker(this.id);
