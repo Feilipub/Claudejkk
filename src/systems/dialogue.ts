@@ -1,9 +1,14 @@
 /**
  * Structured dialogue: authored trees with conditional entry points, lines
  * and options; generic conversations for townsfolk (greeting by reputation,
- * local talk, directions, shop); and contextual ambient barks.
+ * opinion and memory — regulars are greeted by name and asked about what they
+ * bought; local talk, directions, shop); and contextual ambient barks that
+ * know the player, the town gossip and the time of day. NPC↔NPC
+ * conversations live in systems/social.ts.
  */
 import type { Bark, DialogueNode, DialogueOption, DialogueTree } from '../data/schema.ts';
+import { getItem } from '../data/items.ts';
+import { firstNameOf } from '../data/social.ts';
 import { REGIONS, SETTLEMENTS } from '../data/world.ts';
 import type { Npc } from '../entities/npc.ts';
 import type { Game } from '../game.ts';
@@ -59,6 +64,8 @@ export class DialogueSystem {
     const g = this.game;
     const first = !g.flags[`met_${npc.id}`];
     g.setFlag(`met_${npc.id}`, true);
+    g.social?.rememberVisit(npc.id);
+    npc.chatWith = null;
     npc.setState('talk');
     g.bus.emit('npcTalk', { npcId: npc.id });
     // Pick the entry node BEFORE quest progress so quest-specific openings show.
@@ -94,6 +101,7 @@ export class DialogueSystem {
     const g = this.game;
     const h = g.mainHorse();
     return s
+      .replaceAll('{player}', firstNameOf(g.player.name))
       .replaceAll('{horse}', h?.data.name ?? 'your horse')
       .replaceAll('{region}', REGIONS.find((r) => r.id === g.currentRegion)?.name ?? '')
       .replaceAll('{town}', this.open?.npc ? SETTLEMENTS.find((x) => x.id === this.open!.npc.settlementId)?.name ?? '' : '');
@@ -150,8 +158,15 @@ export class DialogueSystem {
     if (topic === 'root') {
       if (wanted && npc.occupation !== 'outlaw') text = 'I know your face from the posters. I don\'t want trouble.';
       else if (notor > 40) text = 'I\'ve heard about you. Say your piece and move along.';
-      else if (honor > 40 || op > 30) text = first ? `Well, now. Folks speak kindly of you. Welcome to ${town?.name ?? 'these parts'}.` : 'Good to see you again, friend.';
+      else if (!first && op < -25) text = 'You again. What do you want?';
+      else if (!first && npc.def.shop && g.social?.isRegular(npc.id)) {
+        // Regulars are greeted by name, and asked after what they bought.
+        const last = g.social.lastPurchase(npc.id);
+        const item = last ? (() => { try { return getItem(last).name; } catch { return null; } })() : null;
+        text = `${this.fill('{player}')}! Good to see you again.` + (item ? ` How's that ${item.toLowerCase()} treating you?` : ' The usual?');
+      } else if (honor > 40 || op > 30) text = first ? `Well, now. Folks speak kindly of you. Welcome to ${town?.name ?? 'these parts'}.` : `Good to see you again, ${this.fill('{player}')}.`;
       else if (first) text = `${npc.name}. ${occupationIntro(npc.occupation)} What can I do for you?`;
+      else if ((g.social?.visitDays(npc.id) ?? 0) >= 2) text = `${this.fill('{player}')}, isn't it? Back again.`;
       else text = 'Back again?';
       opts.push({ text: 'What\'s the news around here?', next: 'generic:news' });
       opts.push({ text: 'Know anything about horses for sale?', next: 'generic:horses' });
@@ -227,6 +242,17 @@ export class DialogueSystem {
     if (pool.length < 3) pool.push(...(GENERIC_BARKS[npc.occupation] ?? []), ...GENERIC_BARKS.any!);
     if (g.law.isWanted(g.currentRegion) && npc.occupation !== 'outlaw') pool.push('That\'s the one from the wanted poster...', 'Keep away from me!');
     if (g.player.stats.health < 40) pool.push('You\'re bleeding, friend. Doc\'s down the street.');
+    // Memory of the player and of what the town has been through lately.
+    const met = !!g.flags[`met_${npc.id}`];
+    const op = g.npcOpinion(npc.id);
+    if (met && op > 20) pool.push('Good to see you, {player}.', 'Well, if it isn\'t {player}.');
+    if (met && op < -20) pool.push('You again.', 'Hmph. {player}.');
+    if (met && npc.def.shop && g.social?.isRegular(npc.id)) pool.push('Come in, {player}, come in!', 'Saved something for you, {player}.');
+    for (const gs of g.social?.recentGossip(npc.settlementId) ?? []) {
+      if (gs.kind === 'killing' && gs.victim) pool.push(`Terrible business about ${gs.victim}.`);
+      if (gs.kind === 'crime') pool.push('Town\'s on edge since the trouble.', 'Lock your door tonight, they say.');
+      if (gs.kind === 'gunfire') pool.push('Heard the shooting earlier. Anybody hurt?');
+    }
     const h = g.mainHorse();
     if (h && Math.hypot(h.x - npc.x, h.y - npc.y) < 80) {
       pool.push(`Handsome ${h.data.name.length < 9 ? 'animal' : 'horse'}.`, 'That horse looks like it\'s been well looked after.');

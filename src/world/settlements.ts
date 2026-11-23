@@ -294,6 +294,57 @@ class Stamper {
     if (this.rng.chance(0.4)) this.put(b.x + b.w - 2, fy, O.Crate);
   }
 
+  /** Clear props in a rect and mark it as settlement, keeping the natural ground (cliffs become `cliffTo`). */
+  clearKeep(x: number, y: number, w: number, h: number, cliffTo: number = G.Dirt): void {
+    const W = this.world;
+    for (let ty = y; ty < y + h; ty++)
+      for (let tx = x; tx < x + w; tx++) {
+        if (!W.inBounds(tx, ty)) continue;
+        const i = W.idx(tx, ty);
+        if (W.ground[i] === G.DeepWater || W.ground[i] === G.ShallowWater) continue;
+        W.obj[i] = O.None;
+        W.flags[i]! |= F.Settlement;
+        if (W.ground[i] === G.Cliff) W.ground[i] = cliffTo;
+      }
+  }
+
+  /** A worked field: farmland ground with a crop row every other line. */
+  field(x: number, y: number, w: number, h: number, crop: number = O.Cornstalk): void {
+    this.clear(x, y, w, h, G.Farmland);
+    for (let ty = y + 1; ty < y + h; ty += 2) for (let tx = x; tx < x + w; tx++) this.put(tx, ty, crop);
+  }
+
+  /** Fenced pasture without trough/hay (a paddock); gate on the top side. */
+  paddock(x: number, y: number, w: number, h: number, gateX: number): void {
+    this.fenceRect(x, y, w, h, gateX, y);
+  }
+
+  /**
+   * A plank pier running south from (x, y) to the first water and `reach` tiles
+   * beyond it; water tiles become bridge decking.
+   */
+  pier(x: number, y: number, width: number, reach: number): { x: number; y: number } | null {
+    const W = this.world;
+    let wet = -1;
+    let end: { x: number; y: number } | null = null;
+    for (let ty = y; ty < y + 40 && W.inBounds(x, ty); ty++) {
+      const isWater = W.ground[W.idx(x, ty)] === G.DeepWater || W.ground[W.idx(x, ty)] === G.ShallowWater;
+      if (isWater && wet < 0) wet = ty;
+      if (wet >= 0 && ty >= wet + reach) break;
+      for (let tx = x; tx < x + width; tx++) {
+        if (!W.inBounds(tx, ty)) continue;
+        const i = W.idx(tx, ty);
+        W.obj[i] = O.None;
+        W.flags[i]! |= F.Settlement;
+        const g = W.ground[i]!;
+        if (g === G.DeepWater || g === G.ShallowWater) W.flags[i]! |= F.Bridge;
+        else W.ground[i] = G.WoodFloor;
+      }
+      end = { x, y: ty };
+    }
+    return wet >= 0 ? end : null;
+  }
+
   street(x: number, y: number, w: number, h: number): void {
     this.clear(x, y, w, h, G.Street);
     for (let ty = y; ty < y + h; ty++) for (let tx = x; tx < x + w; tx++) if (this.world.inBounds(tx, ty)) this.world.flags[this.world.idx(tx, ty)]! |= F.Road;
@@ -565,5 +616,286 @@ const LAYOUTS: Record<string, Layout> = {
     st.put(cx + 1, cy + 3, O.FirePit);
     st.spot('camp', cx + 1, cy + 4);
     st.put(cx - 5, cy + 2, O.HitchPost);
+  },
+
+  // =========================================================================
+  // EXPANSION: towns
+  // =========================================================================
+
+  /** Harrow Junction: a rail town strung along the Meridian & Western, with stockyards on the siding. */
+  junction(st, cx, cy) {
+    st.clear(cx - 24, cy - 20, 49, 31, G.Dirt);
+    st.street(cx - 24, cy - 1, 49, 4);
+    // Back row: houses and a chapel (built first so the main row's clearing never touches them).
+    for (const hx of [cx - 11, cx - 5, cx + 1]) st.building(hx, cy - 18, 5, 5, 'house', 'House', { wall: hx === cx - 5 ? 'brick' : 'plank' });
+    st.building(cx + 8, cy - 19, 7, 6, 'church', 'Junction Union Chapel', { wall: 'whitewash', facade: 12 });
+    st.building(cx + 17, cy - 18, 5, 5, 'house', 'House', {});
+    // Main row, north side of the street.
+    const stable = st.building(cx - 23, cy - 10, 10, 8, 'stable', 'Harrow Livery', { shopId: 'stable_harrow', sign: 'LIVERY', facade: 6 });
+    st.frontage(stable);
+    // Trader horses: the livery corral sits behind the barn (the first corral is the sale pen).
+    st.corral(cx - 23, cy - 19, 10, 7);
+    const north: [BuildingType, string, number, string?, string?, Building['wall']?][] = [
+      ['saloon', 'The Iron Horse Saloon', 10, 'saloon_harrow', 'SALOON', 'plank'],
+      ['hotel', 'Junction House Hotel', 9, 'hotel_harrow', 'HOTEL', 'brick'],
+      ['store', 'Mercer & Daughters Dry Goods', 8, 'store_harrow', 'DRY GOODS', 'plank'],
+      ['sheriff', 'Town Marshal', 7, undefined, 'MARSHAL', 'brick'],
+    ];
+    let x = cx - 12;
+    for (const [type, name, w, shop, sign, wall] of north) {
+      const b = st.building(x, cy - 10, w, 8, type, name, { shopId: shop, sign, wall, facade: type === 'saloon' || type === 'hotel' ? 12 : 8 });
+      st.frontage(b);
+      x += w + 1;
+    }
+    // South side: depot on the platform, freight house, smithy, then the stockyards on the siding.
+    const depot = st.building(cx - 22, cy + 4, 12, 7, 'station', 'Harrow Junction Depot', { shopId: 'station_harrow', sign: 'HARROW JCT', wall: 'brick', facade: 8 });
+    st.put(depot.x, depot.y - 1, O.HitchPost);
+    st.building(cx - 9, cy + 4, 9, 7, 'warehouse', 'M&W Freight House', { sign: 'FREIGHT' });
+    const smith = st.building(cx + 2, cy + 4, 7, 7, 'blacksmith', 'Harrow Smithy', { sign: 'SMITHY' });
+    st.put(smith.x + smith.w - 1, smith.y - 1, O.HitchPost);
+    st.corral(cx + 10, cy + 4, 14, 7);
+    // Platform clutter along the track, and the water tower that gives the place its reason to exist.
+    for (const [px, o] of [[cx - 21, O.Crate], [cx - 20, O.Crate], [cx - 13, O.Barrel], [cx - 12, O.Barrel], [cx - 7, O.Crate], [cx - 3, O.Barrel]] as const) st.put(px, cy + 11, o);
+    st.put(cx - 5, cy + 12, O.WaterTower);
+    st.put(cx + 3, cy + 11, O.Woodpile);
+    st.spot('work', cx - 17, cy + 12, depot.id, 'platform');
+    st.spot('work', cx - 9, cy + 12, undefined, 'platform');
+    st.spot('work', cx + 16, cy + 11, undefined, 'stockyard');
+    st.spot('work', cx + 9, cy + 6, undefined, 'stockyard');
+    // Street furniture.
+    for (let i = -22; i < 24; i += 9) st.put(cx + i, cy - 1, O.LampPost);
+    st.put(cx + 4, cy + 2, O.Well);
+    st.put(cx + 5, cy + 2, O.Trough);
+    st.spot('street', cx, cy + 1);
+    st.spot('street', cx - 14, cy + 1);
+    st.spot('street', cx + 14, cy + 1);
+    st.spot('social', cx - 7, cy);
+    st.spot('social', cx + 6, cy + 1);
+    st.spot('social', cx - 9, cy - 1);
+    st.put(cx - 25, cy - 2, O.Signpost);
+    st.put(cx + 25, cy - 2, O.Signpost);
+  },
+
+  /** Las Golondrinas: an adobe pueblo around a plaza and its well, on the border road. */
+  pueblo(st, cx, cy) {
+    st.clear(cx - 19, cy - 15, 41, 34, G.Hardpan);
+    st.street(cx - 8, cy - 4, 17, 8);
+    const cantina = st.building(cx - 18, cy - 12, 9, 7, 'saloon', 'Cantina El Farol', { wall: 'adobe', shopId: 'saloon_golondrinas', sign: 'CANTINA', facade: 8 });
+    st.frontage(cantina);
+    st.building(cx - 6, cy - 13, 10, 8, 'chapel', 'Capilla de las Golondrinas', { wall: 'adobe', facade: 16 });
+    const tienda = st.building(cx + 6, cy - 12, 8, 7, 'store', 'Tienda Arvizu', { wall: 'adobe', shopId: 'store_golondrinas', sign: 'TIENDA', facade: 6 });
+    st.frontage(tienda);
+    st.building(cx + 15, cy - 10, 5, 5, 'house', 'Casa', { wall: 'adobe' });
+    const smith = st.building(cx - 18, cy + 5, 7, 6, 'blacksmith', 'Herrería Quintero', { wall: 'adobe', shopId: 'smith_golondrinas', sign: 'HERRERIA' });
+    st.put(smith.x, smith.y - 1, O.HitchPost);
+    st.building(cx - 9, cy + 5, 5, 5, 'house', 'Casa', { wall: 'adobe' });
+    st.building(cx - 3, cy + 5, 5, 5, 'house', 'Casa', { wall: 'adobe' });
+    const stable = st.building(cx + 6, cy + 5, 9, 6, 'stable', 'Corrales Navarro', { wall: 'adobe', shopId: 'stable_golondrinas', sign: 'CABALLOS' });
+    st.put(stable.x, stable.y - 1, O.HitchPost);
+    st.corral(cx + 5, cy + 12, 12, 6, stable.doorX);
+    // Irrigated chile and corn plot fed from the well.
+    st.field(cx - 18, cy + 13, 12, 5);
+    st.spot('work', cx - 14, cy + 13, undefined, 'field');
+    st.spot('work', cx - 9, cy + 15, undefined, 'field');
+    // The plaza: well, a ramada table, a carreta.
+    st.put(cx, cy, O.Well);
+    st.put(cx + 1, cy, O.Trough);
+    st.put(cx + 5, cy - 2, O.Table);
+    st.put(cx + 4, cy - 2, O.Chair);
+    st.put(cx + 6, cy - 2, O.Chair);
+    st.put(cx - 6, cy + 2, O.Wagon);
+    st.put(cx - 4, cy - 3, O.FirePit);
+    st.spot('social', cx + 4, cy - 1);
+    st.spot('social', cx + 6, cy - 1);
+    st.spot('social', cx - 4, cy - 2);
+    st.spot('social', cx - 1, cy + 1);
+    st.spot('street', cx + 2, cy + 2);
+    st.spot('street', cx - 7, cy - 1);
+    st.spot('camp', cx - 3, cy - 2);
+    st.put(cx - 10, cy - 15, O.Signpost);
+    st.put(cx + 1, cy + 18, O.Signpost);
+  },
+
+  /** Lodestar Camp: a hard-rock silver camp in the Sierra with a stamp mill and a tunnel. */
+  minecamp(st, cx, cy) {
+    st.clear(cx - 18, cy - 16, 38, 28, G.Dirt);
+    st.street(cx - 18, cy - 1, 32, 3);
+    const assay = st.building(cx - 17, cy - 8, 8, 6, 'assay', 'Lodestar Assay & Claims', { shopId: 'assay_lodestar', sign: 'ASSAY' });
+    st.frontage(assay);
+    const saloon = st.building(cx - 8, cy - 8, 8, 6, 'saloon', 'The Tin Cup', { shopId: 'saloon_lodestar', sign: 'SALOON', facade: 8 });
+    st.frontage(saloon);
+    const post = st.building(cx + 1, cy - 8, 8, 6, 'tradingpost', 'Lodestar Outfitters', { wall: 'log', shopId: 'store_lodestar', sign: 'OUTFITTERS' });
+    st.frontage(post);
+    st.building(cx - 17, cy + 3, 9, 5, 'bunkhouse', 'Miners\' Bunkhouse', { wall: 'log' });
+    st.building(cx - 6, cy + 3, 10, 6, 'sawmill', 'Lodestar Stamp Mill', {});
+    const barn = st.building(cx + 6, cy + 3, 7, 5, 'stable', 'Mule Barn', { wall: 'log' });
+    st.put(barn.x, barn.y - 1, O.HitchPost);
+    st.corral(cx + 14, cy + 3, 6, 6);
+    // Shacks and tents up the slope behind the street.
+    st.building(cx - 16, cy - 15, 4, 4, 'shack', 'Miner\'s shack', {});
+    st.building(cx - 11, cy - 15, 4, 4, 'shack', 'Miner\'s shack', {});
+    st.put(cx - 4, cy - 12, O.Tent);
+    st.put(cx - 1, cy - 13, O.Tent);
+    st.put(cx + 2, cy - 12, O.Tent);
+    st.put(cx - 1, cy - 11, O.FirePit);
+    st.spot('camp', cx - 2, cy - 10);
+    st.spot('camp', cx, cy - 10);
+    // The tunnel: adit, ore track down to the street, timbers and powder crates.
+    st.put(cx + 13, cy - 7, O.MineEntrance);
+    for (let ty = cy - 6; ty <= cy - 2; ty++) st.put(cx + 13, ty, O.Rail);
+    st.put(cx + 15, cy - 7, O.Crate);
+    st.put(cx + 15, cy - 6, O.Crate);
+    st.put(cx + 16, cy - 8, O.Woodpile);
+    st.put(cx + 16, cy - 3, O.Wagon);
+    st.spot('work', cx + 12, cy - 5, undefined, 'mine');
+    st.spot('work', cx + 14, cy - 5, undefined, 'mine');
+    st.spot('work', cx + 14, cy - 3, undefined, 'mine');
+    st.put(cx - 3, cy + 2, O.Trough);
+    st.put(cx - 2, cy + 2, O.Barrel);
+    st.spot('street', cx - 6, cy);
+    st.spot('street', cx + 6, cy);
+    st.spot('social', cx - 4, cy - 1);
+    st.put(cx - 19, cy + 2, O.Signpost);
+  },
+
+  /** Toller's Landing: a river trading post and ferry pier on the Tinaja. */
+  landing(st, cx, cy) {
+    st.clear(cx - 15, cy - 11, 33, 22, G.Dirt);
+    const post = st.building(cx - 14, cy - 9, 9, 7, 'tradingpost', 'Toller\'s Landing Trading Post', { wall: 'log', shopId: 'store_landing', sign: 'TRADING POST' });
+    st.frontage(post);
+    const fur = st.building(cx - 2, cy - 9, 9, 7, 'warehouse', 'Lachance Fur & Freight', { shopId: 'fur_landing', sign: 'FURS' });
+    st.frontage(fur);
+    st.building(cx + 9, cy - 8, 6, 5, 'house', 'Toller House', { wall: 'log' });
+    const saloon = st.building(cx - 14, cy + 4, 8, 6, 'saloon', 'The Mudcat', { shopId: 'saloon_landing', sign: 'SALOON', facade: 6 });
+    st.put(saloon.x, saloon.y - 1, O.HitchPost);
+    st.building(cx - 4, cy + 4, 7, 5, 'stable', 'Ferry Barn', { wall: 'log' });
+    st.corral(cx + 10, cy + 3, 8, 6);
+    // Pier down to the river, freight stacked at the head of it.
+    const end = st.pier(cx + 4, cy + 3, 2, 3);
+    st.put(cx + 3, cy + 3, O.Crate);
+    st.put(cx + 6, cy + 3, O.Barrel);
+    st.put(cx + 6, cy + 4, O.Crate);
+    if (end) {
+      st.spot('work', cx + 4, end.y, undefined, 'pier');
+      st.spot('work', cx + 5, end.y - 1, undefined, 'pier');
+    }
+    st.spot('work', cx + 4, cy + 4, undefined, 'pier');
+    // Rivermen's camp.
+    st.put(cx + 8, cy + 9, O.Tent);
+    st.put(cx + 11, cy + 10, O.FirePit);
+    st.spot('camp', cx + 11, cy + 11);
+    st.spot('social', cx + 10, cy + 11);
+    st.put(cx + 16, cy - 2, O.Wagon);
+    st.put(cx + 1, cy, O.Well);
+    st.spot('street', cx, cy + 1);
+    st.spot('street', cx - 9, cy + 1);
+    st.spot('social', cx - 6, cy + 2);
+    st.put(cx - 16, cy - 1, O.Signpost);
+  },
+
+  // =========================================================================
+  // EXPANSION: ranches and homesteads
+  // =========================================================================
+
+  /** Coldiron Cattle Company: holding pens, branding pen, chuck house, bunkhouse. */
+  cattleranch(st, cx, cy) {
+    st.clearKeep(cx - 16, cy - 13, 34, 27, G.Grass);
+    st.clear(cx - 16, cy - 13, 15, 27, G.Dirt);
+    const house = st.building(cx - 15, cy - 11, 9, 6, 'ranchhouse', 'Coldiron Ranch House', {});
+    st.put(house.x - 1, house.y + house.h, O.Woodpile);
+    st.put(house.x + house.w, house.y + house.h, O.HitchPost);
+    const barn = st.building(cx - 3, cy - 12, 10, 7, 'barn', 'Coldiron Barn', { shopId: 'ranch_coldiron' });
+    st.put(barn.x - 1, barn.y + barn.h, O.HitchPost);
+    st.building(cx - 15, cy - 2, 7, 5, 'cookhouse', 'Chuck House', { wall: 'log' });
+    st.building(cx - 15, cy + 5, 9, 5, 'bunkhouse', 'Coldiron Bunkhouse', { wall: 'log' });
+    st.corral(cx - 4, cy - 2, 12, 9);
+    st.corral(cx + 9, cy - 2, 8, 9);
+    st.paddock(cx - 4, cy + 8, 21, 6, cx + 6);
+    st.put(cx + 10, cy - 10, O.Windmill);
+    st.put(cx + 13, cy - 11, O.WaterTower);
+    st.put(cx + 12, cy - 8, O.Trough);
+    st.put(cx + 13, cy - 8, O.Trough);
+    st.put(cx - 7, cy - 1, O.Wagon);
+    st.put(cx - 7, cy + 2, O.FirePit);
+    st.spot('camp', cx - 7, cy + 3);
+    st.spot('social', cx - 6, cy + 3);
+    st.spot('work', cx + 2, cy + 7, undefined, 'pens');
+    st.spot('work', cx + 12, cy + 7, undefined, 'branding');
+    st.spot('work', cx + 8, cy + 11, undefined, 'pasture');
+    for (let i = 0; i < 4; i++) st.put(cx + 14 + (i % 2), cy + 10 + Math.floor(i / 2), O.HayBale);
+  },
+
+  /** Starling Horse Ranch: breeding barn with a sale corral, round pen and a long paddock. */
+  horseranch(st, cx, cy) {
+    st.clearKeep(cx - 16, cy - 12, 34, 28, G.Grass);
+    st.clear(cx - 16, cy - 12, 34, 15, G.Dirt);
+    const house = st.building(cx - 14, cy - 10, 8, 6, 'ranchhouse', 'Starling House', { wall: 'whitewash' });
+    st.put(house.x + house.w, house.y + house.h, O.HitchPost);
+    const barn = st.building(cx - 3, cy - 11, 12, 7, 'stable', 'Starling Breeding Barn', { shopId: 'stable_starling', sign: 'STARLING', facade: 6 });
+    // Sale corral first: trader horses go in the settlement's first corral.
+    st.corral(cx - 4, cy - 2, 14, 8, barn.doorX);
+    st.corral(cx + 10, cy - 10, 8, 7);
+    st.building(cx - 14, cy + 0, 7, 5, 'bunkhouse', 'Hands\' Bunkhouse', { wall: 'log' });
+    st.paddock(cx - 14, cy + 7, 32, 8, cx);
+    for (const [tx, ty] of [[cx - 11, cy + 9], [cx + 3, cy + 12], [cx + 13, cy + 9]]) st.put(tx!, ty!, O.Trough);
+    for (const [tx, ty] of [[cx - 8, cy + 12], [cx + 9, cy + 10]]) st.put(tx!, ty!, O.HayBale);
+    st.put(cx + 14, cy - 1, O.Windmill);
+    st.put(cx + 13, cy + 1, O.Trough);
+    st.put(cx - 7, cy - 3, O.Well);
+    st.put(cx + 16, cy + 3, O.Wagon);
+    st.spot('work', cx + 13, cy - 3, undefined, 'roundpen');
+    st.spot('work', cx + 1, cy + 10, undefined, 'paddock');
+    st.spot('social', cx - 8, cy - 3);
+    st.spot('social', cx - 6, cy - 2);
+  },
+
+  /** Arrieta Sheep Camp: Basque sheep outfit with shearing shed, pens and a sheep wagon. */
+  sheepcamp(st, cx, cy) {
+    st.clearKeep(cx - 12, cy - 10, 27, 23, G.Grass);
+    st.clear(cx - 12, cy - 10, 27, 10, G.Dirt);
+    const house = st.building(cx - 11, cy - 9, 7, 5, 'house', 'Arrieta House', { wall: 'whitewash' });
+    st.put(house.x - 1, house.y + 2, O.Woodpile);
+    st.building(cx - 1, cy - 9, 9, 6, 'barn', 'Shearing Shed', { shopId: 'farm_arrieta' });
+    st.corral(cx - 11, cy - 1, 9, 7);
+    st.corral(cx - 1, cy - 1, 8, 7);
+    st.corral(cx + 8, cy - 1, 6, 6);
+    st.paddock(cx - 11, cy + 7, 25, 6, cx);
+    st.put(cx + 10, cy - 7, O.Wagon);
+    st.put(cx + 12, cy - 5, O.Tent);
+    st.put(cx + 10, cy - 4, O.FirePit);
+    st.put(cx - 3, cy - 4, O.Well);
+    st.spot('camp', cx + 10, cy - 3);
+    st.spot('social', cx + 9, cy - 3);
+    st.spot('work', cx - 4, cy + 10, undefined, 'flock');
+    st.spot('work', cx + 6, cy + 9, undefined, 'flock');
+    st.spot('home', cx - 8, cy - 3, undefined, 'porch');
+  },
+
+  /** Ashgrove Orchard: apple rows, a corn field, pig pen and a cider house farm stand. */
+  orchard(st, cx, cy) {
+    st.clearKeep(cx - 14, cy - 13, 31, 27, G.Grass);
+    st.clear(cx - 14, cy - 13, 31, 9, G.Dirt);
+    st.building(cx - 13, cy - 11, 8, 6, 'house', 'Marsh Farmhouse', { wall: 'whitewash' });
+    st.building(cx - 2, cy - 12, 10, 7, 'barn', 'Ashgrove Barn', {});
+    const stand = st.building(cx + 9, cy - 10, 8, 5, 'store', 'Ashgrove Cider House', { shopId: 'farm_ashgrove', sign: 'CIDER', facade: 4 });
+    st.frontage(stand);
+    st.corral(cx - 13, cy - 2, 8, 6);
+    st.put(cx - 4, cy - 3, O.Windmill);
+    st.put(cx - 4, cy - 2, O.Trough);
+    // The orchard: apple trees planted on a three-tile grid.
+    st.ground(cx - 4, cy - 2, 20, 8, G.Grass);
+    for (let ty = cy - 1; ty <= cy + 3; ty += 2) for (let tx = cx - 3; tx <= cx + 12; tx += 3) st.put(tx, ty, O.Oak);
+    st.spot('work', cx - 1, cy + 1, undefined, 'orchard');
+    st.spot('work', cx + 5, cy + 2, undefined, 'orchard');
+    st.spot('work', cx + 11, cy, undefined, 'orchard');
+    st.field(cx - 13, cy + 6, 28, 7);
+    st.spot('work', cx - 8, cy + 8, undefined, 'field');
+    st.spot('work', cx + 6, cy + 10, undefined, 'field');
+    st.put(cx + 9, cy - 3, O.Well);
+    st.put(cx + 13, cy - 3, O.Barrel);
+    st.put(cx + 14, cy - 3, O.Barrel);
+    st.put(cx + 12, cy - 3, O.Crate);
+    st.spot('social', cx + 10, cy - 2);
+    st.spot('social', cx - 7, cy - 4);
   },
 };

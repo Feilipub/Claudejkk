@@ -33,6 +33,7 @@ import { CampSystem, Campfire } from './systems/camp.ts';
 import { CombatSystem } from './systems/combat.ts';
 import { DialogueSystem } from './systems/dialogue.ts';
 import { Economy } from './systems/economy.ts';
+import { JobSystem } from './systems/jobs.ts';
 import { InteractionSystem } from './systems/interactions.ts';
 import { LawSystem } from './systems/law.ts';
 import { QuestSystem } from './systems/quests.ts';
@@ -43,6 +44,7 @@ import { TamingSystem } from './systems/taming.ts';
 import { HorseThiefSystem } from './systems/horsethief.ts';
 import { GameClock } from './systems/time.ts';
 import { WeatherSystem } from './systems/weather.ts';
+import { SocialSystem } from './systems/social.ts';
 import type { UI } from './ui/ui.ts';
 import type { Spot, Corral } from './world/settlements.ts';
 import type { Building, World } from './world/world.ts';
@@ -79,6 +81,8 @@ export class Game {
   quests: QuestSystem;
   dialogue: DialogueSystem;
   economy: Economy;
+  /** Paid work, notice boards and homestead prompts (systems/jobs.ts). */
+  jobs: JobSystem;
   interactions: InteractionSystem;
   camp: CampSystem;
   activities: Activities;
@@ -86,6 +90,7 @@ export class Game {
   thieves: HorseThiefSystem;
   combat: CombatSystem;
   spawner: Spawner;
+  social: SocialSystem;
   encounters: { spawn: (id: string) => void; spawnBountyHunters: (n: number) => void };
   ui!: UI;
   npcMemory: Record<string, NpcMemory> = {};
@@ -140,6 +145,7 @@ export class Game {
     this.quests = new QuestSystem(this, this.content.QUESTS);
     this.dialogue = new DialogueSystem(this, this.content.DIALOGUE, this.content.BARKS);
     this.economy = new Economy(this);
+    this.jobs = new JobSystem(this);
     this.interactions = new InteractionSystem(this);
     this.camp = new CampSystem(this);
     this.activities = new Activities(this);
@@ -147,6 +153,7 @@ export class Game {
     this.thieves = new HorseThiefSystem(this);
     this.combat = new CombatSystem(this);
     this.spawner = new Spawner(this);
+    this.social = new SocialSystem(this);
     this.encounters = {
       spawn: (id) => {
         const e = this.content.ENCOUNTERS.find((x) => x.id === id);
@@ -275,11 +282,13 @@ export class Game {
     this.taming.update(dt);
     this.thieves.update(dt);
     this.activities.update(dt);
+    this.jobs.update(dt);
     this.combat.update(dt);
     this.law.update(dt);
     this.quests.update(dt);
     this.spawner.update(dt);
     this.spawner.updateTravelers(dt);
+    this.social.update(dt);
     this.camp.update();
     this.interactions.update();
     this.checkDiscoveries();
@@ -351,6 +360,7 @@ export class Game {
     this.lastDay = this.clock.day;
     this.deliverFoals();
     this.economy.daily();
+    this.jobs.daily();
     for (const h of this.ownedHorses()) {
       const msg = dailyCareReview(h.data, this.clock.day);
       if (msg) this.notify(msg, 'bad');
@@ -387,6 +397,7 @@ export class Game {
         } else if (Math.hypot(e.x - x, e.y - y) < radius * 0.5) e.setState(e.rng.chance(0.5) ? 'cower' : 'flee');
       }
     }
+    this.social.onNoise(x, y, radius, kind, source);
     if (kind === 'gunshot' && source === 'player') this.law.reportCrime('discharge', x, y);
   }
 
@@ -960,6 +971,7 @@ export class Game {
       lore: [...this.loreUnlocked],
       explored: Array.from(this.explored).join(''),
       economy: this.economy.serialize(),
+      jobs: this.jobs.serialize(),
       ownedGear: this.ownedGear,
       pregnancies: this.pregnancies,
       camp: this.camp.fire ? { x: this.camp.fire.x, y: this.camp.fire.y } : null,
@@ -1018,6 +1030,7 @@ export class Game {
       this.loreUnlocked = new Set(d.lore ?? []);
       if (typeof d.explored === 'string') for (let i = 0; i < Math.min(d.explored.length, this.explored.length); i++) this.explored[i] = d.explored[i] === '1' ? 1 : 0;
       this.economy.load(d.economy ?? {});
+      this.jobs.load(d.jobs ?? {});
       this.ownedGear = d.ownedGear ?? {};
       this.pregnancies = d.pregnancies ?? [];
       this.playtime = d.playtime ?? 0;

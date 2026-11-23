@@ -52,8 +52,10 @@ src/
   entities/            Entity + SpatialHash, Player, HorseEntity (AI + riding), Npc, Animal
   systems/             quests, dialogue, script (conditions/effects), law, reputation, combat,
                        economy, interactions, camp, activities, taming, horsethief, spawner, skills, save, time, weather
-  render/              pixel helpers, terrain chunk cache, renderer (lighting/weather/particles),
-                       procedural sprite painters: horse, human, animal, prop, building
+  render/              pixmap (hand-drawn pixel grids + master palette), terrain chunk cache,
+                       renderer (lighting/weather/particles), sprite builders: horse, human, portrait,
+                       animal, prop, building (+ *Pixel.ts drawing files)
+  core/i18n.ts         localisation (English keys → locale dictionary)
   audio/               Web Audio synthesis: hooves, neighs, guns, ambience, generative score
   ui/                  DOM UI: HUD, prompts, every menu; western design system (style.ts)
 tests/unit/            node:test suites (horse, brain, systems/data integrity)
@@ -149,3 +151,43 @@ system combines event-driven and polled objectives with branching `next` and `fa
 - Target is 60 fps. Headless software-rendered Chromium measured an average of 16.7 ms per frame.
 - Chunk painting takes about 10–25 ms per chunk and is capped at 2 per frame.
 - Sprite sets are cached: horse sets in an LRU of 60, the human cache holds up to 200, and building sprites are cached by id.
+
+## 10. Art pipeline (round 3): hand-authored pixel grids
+
+Earlier rounds painted sprites with canvas primitives (ellipses, polygons, gradients, noise) and then
+snapped them to pixels. The result read as "smeared". The pipeline is now:
+
+- `render/pixmap.ts` — `pixmap(rows, key)` turns a text grid (one character per pixel) into a canvas
+  through the **master palette** `PAL` (named, hue-shifted ramps: cool shadows, warm highlights);
+  `recolor()` swaps ramps (coats, clothes, siding), `flipX()` mirrors, `compose()` stacks layers.
+- Drawings live next to their painter: `tiles16.ts` (ground tiles + transitions), `propsPixel.ts`,
+  `buildingPixel.ts` (modular roofs/walls/windows/doors/porches/signs), `humanPixel.ts`,
+  `horsePixel.ts`, `animalPixel.ts`, `ui/icons.ts` (pixel icons as data URIs).
+- Rules are in `design/art/pixel-art-bible.md` (16 px grid, big readable heads, per-material tinted
+  outline, 3–5 values per material, clusters not noise, calm ground / lively actors).
+- Everything is still generated at load and cached; there are no image files in the repo.
+
+## 11. Mobile presentation
+
+- The renderer picks a whole number of **device** pixels per game pixel (`physScale`), so art is crisp
+  on any DPR; the CSS scale follows from it. A camera setting (Far/Normal/Close) shifts the step.
+- `viewport-fit=cover`; the UI root is inset by `env(safe-area-inset-*)`; `100dvh` body.
+- Touch controls (`ui/touch.ts`): a floating joystick on the left half and action buttons on the right
+  press the same key codes as the keyboard, so gameplay stays input-agnostic. The first touch requests
+  fullscreen and a landscape lock where the browser allows it; portrait shows a rotate overlay.
+- Phone layout is driven by `body.has-touch` rules in `ui/style.ts`.
+
+## 12. Localisation
+
+`core/i18n.ts`: English strings are the keys; `L(key, ...args)` / `` tr`…` `` look them up in the active
+dictionary (`data/locale/pt-BR.ts`), falling back to English. `translateDom(root)` translates the text
+nodes of rendered UI templates so large HTML templates stay readable English in code. The language is a
+setting (auto-detected from the browser on first run). `tools/i18n-extract.mjs` lists the keys.
+
+## 13. How the studio works on this code
+
+Features and art are produced by specialist agents working in parallel on **disjoint file sets**
+(ownership is stated in each brief), each verifying with `tsc`, unit tests, builds into their own
+`WF_OUT` folder and scene screenshots. Human-style playtest agents play through `tools/playd.mjs`
+(keyboard/mouse or phone emulation; no access to internals) and write reports in `production/qa/playtests/`.
+An adversarial review pass (independent reviewers trying to break each change) runs before integration.

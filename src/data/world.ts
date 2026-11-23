@@ -257,6 +257,48 @@ export const ROADS: RoadDef[] = [
   { id: 'valleytrail', kind: 'trail', width: 1, points: [[300, 220], [360, 200], [420, 190], [455, 175]] },
   // Ghost town trail
   { id: 'ghosttrail', kind: 'trail', width: 1, points: [[290, 410], [250, 360], [230, 320]] },
+
+  // --- Expansion: new settlements and working ranches -------------------------
+  // East stage road: Port Ashby → north shore of Blackwater Lake → Harrow Junction
+  { id: 'eastroad', kind: 'road', width: 2, points: [[610, 400], [655, 402], [690, 425], [714, 445]] },
+  // Harrow Junction south across the rail and the Outlet to Toller's Landing
+  { id: 'landingroad', kind: 'road', width: 2, points: [[738, 457], [736, 472], [722, 490], [700, 512], [670, 540], [654, 568]] },
+  // River road: Fort Rourke east along the Tinaja to Toller's Landing
+  { id: 'riverroad', kind: 'trail', width: 2, points: [[456, 584], [490, 590], [530, 588], [575, 582], [606, 572], [620, 568]] },
+  // Lodestar Camp: from the Sayen valley trail up into the Sierra
+  { id: 'minetrail', kind: 'trail', width: 1, points: [[420, 190], [404, 150], [392, 112], [386, 86], [391, 71]] },
+  // Ridge trail: Whitepeak east over the Calder headwaters to Lodestar
+  { id: 'ridgetrail', kind: 'trail', width: 1, points: [[262, 86], [300, 78], [345, 73], [391, 70]] },
+  // Mission San Isidro south to Las Golondrinas
+  { id: 'pueblotrail', kind: 'trail', width: 1, points: [[118, 631], [116, 650], [104, 660]] },
+  // El camino: Las Golondrinas south to the border
+  { id: 'caminoreal', kind: 'trail', width: 1, points: [[115, 688], [116, 720], [118, 766]] },
+  // Coldiron Cattle Company spur off the fort road
+  { id: 'cattlespur', kind: 'trail', width: 2, points: [[379, 436], [372, 438], [368, 438]] },
+  // Starling Horse Ranch spur off the stage road
+  { id: 'starlingspur', kind: 'trail', width: 2, points: [[545, 407], [540, 430], [535, 456]] },
+  // Arrieta Sheep Camp: from Gallow's Hope up into the foothills
+  { id: 'sheeptrail', kind: 'trail', width: 1, points: [[215, 318], [190, 300], [172, 284], [166, 277]] },
+  // Ashgrove Orchard lane off the east road
+  { id: 'orchardlane', kind: 'trail', width: 2, points: [[672, 413], [696, 398], [707, 384], [707, 368]] },
+];
+
+/**
+ * Signposts at trail junctions and settlement approaches (tile coords). Worldgen
+ * stamps each on the nearest free tile beside the road; reading one names the
+ * three nearest settlements (Game.signText).
+ */
+export const SIGNPOSTS: [number, number][] = [
+  [379, 434], // fort road ↔ Coldiron spur
+  [547, 409], // stage road ↔ Starling spur
+  [673, 410], // east road ↔ Ashgrove lane
+  [422, 188], // valley trail ↔ Lodestar trail
+  [458, 586], // Fort Rourke ↔ river road
+  [740, 458], // Harrow Junction south crossing
+  [119, 633], // Mission ↔ Las Golondrinas
+  [213, 320], // Gallow's Hope ↔ Arrieta trail
+  [263, 88], // Whitepeak ↔ ridge trail
+  [641, 398], // Port Ashby ↔ east road
 ];
 
 /** Railroad: Meridian & Western line. */
@@ -264,7 +306,7 @@ export const RAILROAD: [number, number][] = [
   [767, 470], [700, 455], [640, 395], [600, 390], [540, 372], [480, 352], [420, 350], [372, 360], [320, 375], [260, 420], [200, 470], [150, 500], [90, 520],
 ];
 
-export type SettlementKind = 'town' | 'city' | 'ranch' | 'camp' | 'fort' | 'ghost' | 'mining' | 'hideout' | 'station' | 'lodge' | 'cabin' | 'farm';
+export type SettlementKind = 'town' | 'city' | 'ranch' | 'camp' | 'fort' | 'ghost' | 'mining' | 'hideout' | 'station' | 'lodge' | 'cabin' | 'farm' | 'post';
 
 export interface SettlementDef {
   id: string;
@@ -293,6 +335,15 @@ export const SETTLEMENTS: SettlementDef[] = [
   { id: 'sayen', name: 'Sayen Valley Lodge', kind: 'lodge', regionId: 'pinehollow', x: 458, y: 172, layout: 'lodge', description: 'Winter home of the Sayen people, breeders of the finest spotted horses in the territory.' },
   { id: 'halvorsen', name: 'Halvorsen Homestead', kind: 'farm', regionId: 'dustfall', x: 430, y: 318, layout: 'farm', description: 'A Norwegian family\'s wheat farm, fighting the wind and the railroad both.' },
   { id: 'trappercabin', name: 'Hollow Crown Cabin', kind: 'cabin', regionId: 'sierra', x: 160, y: 120, layout: 'cabin', description: 'A trapper\'s cabin under the Hollow Crown peaks.' },
+  // --- Expansion (appended so existing building/spot ids stay stable) -------
+  { id: 'harrow', name: 'Harrow Junction', kind: 'town', regionId: 'blackwater', x: 738, y: 444, layout: 'junction', description: 'Where the Meridian & Western takes on water and cattle: a brick depot, stockyards by the siding, two shifts of brakemen and a saloon that never quite closes.' },
+  { id: 'golondrinas', name: 'Las Golondrinas', kind: 'town', regionId: 'drylands', x: 112, y: 676, layout: 'pueblo', description: 'An adobe pueblo on the border road, older than any map of the territory. Swallows nest under the chapel eaves every spring, and the well has never once gone dry.' },
+  { id: 'lodestar', name: 'Lodestar Camp', kind: 'mining', regionId: 'sierra', x: 410, y: 70, layout: 'minecamp', description: 'A hard-rock silver camp clawed into the High Sierra: one stamp mill, one saloon, and three hundred feet of tunnel that might yet be worth something.' },
+  { id: 'tollers', name: 'Toller\'s Landing', kind: 'post', regionId: 'blackwater', x: 636, y: 566, layout: 'landing', description: 'A river trading post and ferry on the Tinaja. Furs, freight, catfish and gossip, bought and sold at the water\'s edge.' },
+  { id: 'coldiron', name: 'Coldiron Cattle Company', kind: 'ranch', regionId: 'dustfall', x: 350, y: 442, layout: 'cattleranch', description: 'The biggest cattle outfit on the Dustfall: holding pens, a branding pen, a chuck house and two thousand head on the open range.' },
+  { id: 'starling', name: 'Starling Horse Ranch', kind: 'ranch', regionId: 'blackwater', x: 540, y: 468, layout: 'horseranch', description: 'A breeding farm for blooded saddle horses south of the Calder, with a round pen, a sale corral and a long green paddock.' },
+  { id: 'arrieta', name: 'Arrieta Sheep Camp', kind: 'farm', regionId: 'sierra', x: 152, y: 280, layout: 'sheepcamp', description: 'A Basque sheep outfit in the Sierra foothills: shearing shed, stone house, a sheep wagon and a great deal of opinionated livestock.' },
+  { id: 'ashgrove', name: 'Ashgrove Orchard', kind: 'farm', regionId: 'blackwater', x: 690, y: 370, layout: 'orchard', description: 'Apple orchard, corn and a cider house on the rich lake-bottom soil north of Blackwater Lake.' },
 ];
 
 export interface PoiDef {

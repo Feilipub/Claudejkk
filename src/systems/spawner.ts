@@ -23,7 +23,7 @@ import { F, G } from '../world/tiles.ts';
 
 const GENERIC_COUNT: Record<string, number> = { town: 9, city: 13, mining: 5, camp: 4, ranch: 3, fort: 5, lodge: 5, farm: 2, station: 1 };
 const GENERIC_OCC: Record<string, Occupation[]> = {
-  town: ['cowhand', 'farmer', 'traveler', 'child', 'cowhand', 'drifter', 'railroad', 'saloongirl', 'gambler'],
+  town: ['cowhand', 'farmer', 'traveler', 'child', 'elder', 'drifter', 'railroad', 'saloongirl', 'gambler'],
   city: ['banker', 'railroad', 'traveler', 'child', 'saloongirl', 'gambler', 'drifter', 'merchant', 'railroad', 'cowhand', 'pianist'],
   mining: ['miner', 'miner', 'miner', 'drifter', 'gambler'],
   camp: ['logger', 'logger', 'logger', 'cook'],
@@ -57,14 +57,18 @@ export class Spawner {
     const n = GENERIC_COUNT[s.kind] ?? 0;
     const occs = GENERIC_OCC[s.kind] ?? ['traveler'];
     const rng = new Rng(hashString(settlementId + ':gen'));
+    // Generated children belong to a family in town (shared surname → the social layer treats them as kin).
+    const parent = named.find((d) => d.occupation !== 'child' && !d.fixed && d.name.split(' ').length > 1 && !/^(Sheriff|Deputy|Dr\.|Reverend)/.test(d.name));
     for (let i = 0; i < n; i++) {
       const occ = occs[i % occs.length]!;
       const female = occ === 'saloongirl' || rng.chance(0.38);
       const sayen = s.kind === 'lodge';
       const first = female ? rng.pick(FIRST_NAMES_F) : rng.pick(FIRST_NAMES_M);
+      const rolled = sayen ? '' : rng.pick(SURNAMES); // same RNG draws as before, so existing townsfolk keep their names
+      const surname = occ === 'child' && parent ? parent.name.split(' ').pop()! : rolled;
       out.push({
         id: `gen_${settlementId}_${i}`,
-        name: sayen ? `${rng.pick(['Tiyo', 'Asenka', 'Mareh', 'Kotah', 'Lenai', 'Sahro', 'Wenu', 'Talo'])} ${rng.pick(['Ashe', 'Veyna', 'Tolani', 'Rennick', 'Hollow-Creek', 'Osa'])}` : `${first} ${rng.pick(SURNAMES)}`,
+        name: sayen ? `${rng.pick(['Tiyo', 'Asenka', 'Mareh', 'Kotah', 'Lenai', 'Sahro', 'Wenu', 'Talo'])} ${rng.pick(['Ashe', 'Veyna', 'Tolani', 'Rennick', 'Hollow-Creek', 'Osa'])}` : `${first} ${surname}`,
         occupation: occ,
         settlement: settlementId,
         look: female ? { skirt: true } : {},

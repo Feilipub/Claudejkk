@@ -18,6 +18,8 @@ import { appraise } from '../horse/economy.ts';
 import { bondLevel, maxHealth, maxStamina, rawStat, rideStats, statWord } from '../horse/stats.ts';
 import { horseSprites, HW, HH } from '../render/horseSprite.ts';
 import { portrait, PORTRAIT_H, PORTRAIT_W } from '../render/portrait.ts';
+import { detectLocale, L, LOCALES, setLocale, translateDom, type Locale } from '../core/i18n.ts';
+import { PT_BR } from '../data/locale/pt-BR.ts';
 import { GROUND } from '../world/tiles.ts';
 import type { OpenDialogue } from '../systems/dialogue.ts';
 import { REP_LABELS } from '../systems/reputation.ts';
@@ -55,7 +57,7 @@ export class UI {
   /** Highlighted dialogue option (keyboard arrows / gamepad). */
   private dlgSel = 0;
   private dlgShownAt = 0;
-  settings = { textScale: 1, showMinimap: true, music: 0.45, sfx: 0.9, ambience: 0.6, reducedMotion: false, colorblind: false, cameraZoom: 0 };
+  settings: { textScale: number; showMinimap: boolean; music: number; sfx: number; ambience: number; reducedMotion: boolean; colorblind: boolean; cameraZoom: number; locale: Locale | 'auto' } = { textScale: 1, showMinimap: true, music: 0.45, sfx: 0.9, ambience: 0.6, reducedMotion: false, colorblind: false, cameraZoom: 0, locale: 'auto' };
 
   constructor(root: HTMLElement) {
     const style = document.createElement('style');
@@ -87,6 +89,7 @@ export class UI {
     this.minimap.height = 168;
     this.minimap.className = 'minimap';
     this.loadSettings();
+    this.applyLocale();
   }
 
   get modalOpen(): boolean {
@@ -459,6 +462,7 @@ export class UI {
     m.addEventListener('mousedown', (e) => {
       if (e.target === m) this.closeModal();
     });
+    translateDom(m);
     this.modalEl = m;
     this.modalName = name;
     this.game?.input && (this.game.input.blocked = true);
@@ -633,6 +637,7 @@ export class UI {
       'settings',
       `<h2>Settings</h2>
       <div class="opt-row"><label>Text size</label><input type="range" min="0.8" max="1.5" step="0.05" value="${s.textScale}" id="ts"></div>
+      <div class="opt-row"><label>Language</label><select id="lg"><option value="auto" ${s.locale === 'auto' ? 'selected' : ''}>Auto (${LOCALES.find((l) => l.id === detectLocale())?.name})</option>${LOCALES.map((l) => `<option value="${l.id}" ${s.locale === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
       <div class="opt-row"><label>Camera</label><select id="cz"><option value="-1" ${s.cameraZoom === -1 ? 'selected' : ''}>Far (see more)</option><option value="0" ${s.cameraZoom === 0 ? 'selected' : ''}>Normal</option><option value="1" ${s.cameraZoom === 1 ? 'selected' : ''}>Close (bigger)</option></select></div>
       <div class="opt-row"><label>Music volume</label><input type="range" min="0" max="1" step="0.05" value="${s.music}" id="mv"></div>
       <div class="opt-row"><label>Effects volume</label><input type="range" min="0" max="1" step="0.05" value="${s.sfx}" id="sv"></div>
@@ -651,6 +656,7 @@ export class UI {
     };
     bind('ts', (v) => (s.textScale = +v));
     bind('cz', (v) => (s.cameraZoom = +v));
+    bind('lg', (v) => (s.locale = v as Locale | 'auto'));
     bind('mv', (v) => (s.music = +v));
     bind('sv', (v) => (s.sfx = +v));
     bind('av', (v) => (s.ambience = +v));
@@ -666,8 +672,16 @@ export class UI {
       /* storage unavailable */
     }
   }
+  /** Activate the chosen (or detected) locale; UI re-renders pick it up through translateDom()/L(). */
+  applyLocale(): void {
+    const l = this.settings.locale === 'auto' ? detectLocale() : this.settings.locale;
+    setLocale(l, l === 'pt-BR' ? PT_BR : {});
+    document.documentElement.lang = l;
+  }
+
   applySettings(): void {
     const s = this.settings;
+    this.applyLocale();
     this.root.style.fontSize = `${s.textScale * 100}%`;
     this.root.classList.toggle('cb', s.colorblind);
     (this.root.style as unknown as { zoom: string }).zoom = String(s.textScale);

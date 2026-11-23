@@ -184,6 +184,24 @@ export const ITEMS: ItemDef[] = [
   I({ id: 'ring', name: 'Gold Ring', category: 'valuable', weight: 0.01, price: 20, stack: 10, icon: 'ring', description: 'Simple band.', sellOnly: true }),
   I({ id: 'lockbox', name: 'Strongbox Cash', category: 'valuable', weight: 1, price: 45, stack: 10, icon: 'cash', description: 'Bundled banknotes. Hot money.', sellOnly: true }),
   I({ id: 'lockpick', name: 'Lockpick', category: 'tool', weight: 0.01, price: 1.5, stack: 10, icon: 'lockpick', description: 'Opens locks. Sometimes breaks.' }),
+
+  // --- Work tools & trade goods (economy-jobs GDD) ----------------------------------
+  // Trade goods are 'material' so every general store's sell tab and the satchel's
+  // "Goods & valuables" list pick them up. Regional prices live in data/trade.ts.
+  I({ id: 'axe', name: 'Felling Axe', category: 'tool', weight: 2.5, price: 3, stack: 1, icon: 'axe', description: 'Single-bit axe. Fell timber anywhere trees stand thick enough to spare one.' }),
+  I({ id: 'oreRaw', name: 'Raw Galena Ore', category: 'material', weight: 2, price: 0.12, stack: 30, icon: 'ore', description: 'Low-grade lead-silver ore. The stamp mills buy it by the sack.', sellOnly: true }),
+  I({ id: 'lumber', name: 'Split Timber', category: 'material', weight: 3, price: 0.15, stack: 20, icon: 'lumber', description: 'Rough-split rails and beams. Every town that is growing wants more.', sellOnly: true }),
+  I({ id: 'wheatSheaf', name: 'Wheat Sheaf', category: 'material', weight: 1, price: 0.06, stack: 30, icon: 'wheat', description: 'Bound and dried. The mill pays by the sheaf.', sellOnly: true }),
+  I({ id: 'furBundle', name: 'Bundle of Furs', category: 'material', weight: 4, price: 9, stack: 5, icon: 'pelt', description: 'Trapper-graded beaver and marten, baled for the city furriers.' }),
+  I({ id: 'whiskeyCrate', name: 'Case of Whiskey', category: 'material', weight: 6, price: 6, stack: 5, icon: 'bottle', description: 'Twelve bottles from the Ashby distillery, straw-packed. Dear as gold in a dry camp.' }),
+  I({ id: 'coffeeSack', name: 'Sack of Coffee', category: 'material', weight: 5, price: 4, stack: 5, icon: 'coffee', description: 'Green beans landed at the Ashby wharf. Mountain camps run on it.' }),
+  I({ id: 'toolCrate', name: 'Crate of Tools', category: 'material', weight: 7, price: 8, stack: 4, icon: 'crate', description: 'Picks, saw blades and files from the Ashby foundry.' }),
+  I({ id: 'cattleBill', name: 'Bill of Sale: One Steer', category: 'material', weight: 0.05, price: 12, stack: 10, icon: 'document', description: 'Title to one longhorn steer, held in the seller\'s yard and handed over at any buyer\'s stockyard.' }),
+  I({ id: 'eggs', name: 'Fresh Eggs', category: 'food', weight: 0.2, price: 0.1, stack: 24, icon: 'egg', description: 'From your own hens.', effects: { hunger: 15, health: 3 }, spoilDays: 5 }),
+  // Job cargo: not sold anywhere; handed over at the destination board.
+  I({ id: 'freightParcel', name: 'Freight Parcel', category: 'quest', weight: 4, price: 0, stack: 5, icon: 'crate', description: 'Sealed and waybilled. Deliver it to the board named on the waybill.' }),
+  I({ id: 'mailSack', name: 'Mail Sack', category: 'document', weight: 1, price: 0, stack: 5, icon: 'document', description: 'Territorial mail. Late letters cost the rider his pay.' }),
+  I({ id: 'strongbox', name: 'Company Strongbox', category: 'quest', weight: 5, price: 0, stack: 1, icon: 'cash', description: 'Payroll for the destination. Road agents know these runs.' }),
 ];
 
 const BY_ID = new Map(ITEMS.map((i) => [i.id, i]));

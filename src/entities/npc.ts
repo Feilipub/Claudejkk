@@ -1,120 +1,98 @@
 /**
- * NPCs: named story characters and generated townsfolk. Each follows an
- * occupation schedule across named settlement spots (work counter, home bed,
- * saloon table…), paths through doors with A*, reacts to gunfire and crime,
- * barks contextual lines, and — when hostile — fights with cover-seeking,
- * flanking, retreat and surrender behaviour. Lawmen pursue wanted players.
+ * NPCs: named story characters and generated townsfolk. Each follows a
+ * data-driven occupation routine (data/social.ts: wake, meals, work shifts,
+ * saloon evenings, church on Sunday, sleep) across settlement places, paths
+ * through doors with A*, and performs a visible work activity on arrival
+ * (hammering, sweeping, feeding stock, patrolling…) with a hand prop. They
+ * shelter from rain, carry lanterns after dark, hide from gunfire, chat with
+ * each other (systems/social.ts drives that), bark contextual lines, and —
+ * when hostile — fight with cover-seeking, flanking, retreat and surrender
+ * behaviour. Lawmen pursue wanted players.
  */
 import { Rng, hashString } from '../core/rng.ts';
 import { approach, clamp, facing4 } from '../core/math.ts';
 import { getItem } from '../data/items.ts';
+import { ACTS, blockAt, SOCIAL_TUNING, type ActKind, type PropKind, type SchedBlock } from '../data/social.ts';
 import type { NpcDef } from '../data/schema.ts';
 import type { Game } from '../game.ts';
 import { humanSprites, PH, PW, type HumanAnim, type HumanLook, type Dir } from '../render/humanSprite.ts';
 import type { Renderer } from '../render/renderer.ts';
 import { findPath } from '../world/path.ts';
 import type { Spot } from '../world/settlements.ts';
-import { OBJ } from '../world/tiles.ts';
+import { O, OBJ } from '../world/tiles.ts';
 import { Entity } from './entity.ts';
 
 export type NpcState = 'schedule' | 'talk' | 'cower' | 'flee' | 'combat' | 'surrender' | 'dead' | 'pursue' | 'hogtied' | 'follow' | 'duel' | 'guard';
 
-interface Block {
-  from: number;
-  to: number;
-  kind: Spot['kind'] | 'workAny';
-  anim: HumanAnim;
+/** Default workplace building type per occupation, for NPCs without an authored `workAt`. */
+const OCC_BUILDING: Record<string, string[]> = {
+  bartender: ['saloon'], saloongirl: ['saloon'], gambler: ['saloon'], pianist: ['saloon'],
+  blacksmith: ['blacksmith'], preacher: ['church', 'chapel'], merchant: ['store', 'tradingpost'], doctor: ['doctor'],
+  banker: ['bank'], telegrapher: ['telegraph', 'station'], editor: ['newspaper'], sheriff: ['sheriff'], deputy: ['sheriff'],
+  stablehand: ['stable', 'barn'], horsetrader: ['stable'], cook: ['cookhouse'], logger: ['sawmill', 'warehouse'],
+  hotelier: ['hotel'], gunsmith: ['gunsmith'], tailor: ['tailor'], surveyor: ['station', 'telegraph'], railroad: ['station', 'warehouse'],
+  cowhand: ['barn', 'stable'], rancher: ['ranchhouse'], breeder: ['barn', 'stable'],
+};
+const PORCH_TYPES = ['house', 'hotel', 'ranchhouse', 'cabin', 'lodgehouse', 'bunkhouse', 'shack', 'store', 'officers', 'cookhouse'];
+const BEAT_TYPES = ['sheriff', 'saloon', 'bank', 'store', 'hotel', 'stable', 'church', 'telegraph', 'barracks', 'officers'];
+/** Places that are outdoors by nature (rain sends people from these under a roof). */
+const OUTDOOR_PLACES = new Set(['street', 'porch', 'shopfront', 'patrol', 'corral', 'field', 'camp', 'guard']);
+
+interface TownPlace {
+  x: number;
+  y: number;
+  type: string;
+  bid: string;
+}
+interface TownPlaces {
+  /** Walkable tile just outside each door (boardwalk, porch). */
+  doorfronts: TownPlace[];
+  /** Just inside each door (rain/gunfire shelter). */
+  shelters: TownPlace[];
+}
+const PLACE_CACHE = new WeakMap<object, Map<string, TownPlaces>>();
+
+/** Derived, cached outdoor places of a settlement (doorfronts, shelters). Pure function of the generated world. */
+export function townPlaces(game: Game, sid: string): TownPlaces {
+  let m = PLACE_CACHE.get(game.world);
+  if (!m) PLACE_CACHE.set(game.world, (m = new Map()));
+  let tp = m.get(sid);
+  if (tp) return tp;
+  const W = game.world;
+  const free = (x: number, y: number) => !W.blockedPx(x * 16 + 8, y * 16 + 10) && !W.insideBuilding(x * 16 + 8, y * 16 + 10);
+  tp = { doorfronts: [], shelters: [] };
+  for (const b of game.buildingsOf(sid)) {
+    if (b.ruined) continue;
+    const f = free(b.doorX, b.doorY + 1) ? { x: b.doorX, y: b.doorY + 1 } : W.findNear(b.doorX, b.doorY + 1, 2, free);
+    if (f) tp.doorfronts.push({ x: f.x * 16 + 8, y: f.y * 16 + 10, type: b.type, bid: b.id });
+    const inY = !W.blockedPx(b.doorX * 16 + 8, (b.doorY - 1) * 16 + 10) ? b.doorY - 1 : b.doorY;
+    tp.shelters.push({ x: b.doorX * 16 + 8, y: inY * 16 + 10, type: b.type, bid: b.id });
+  }
+  m.set(sid, tp);
+  return tp;
 }
 
-const SHOPKEEP: Block[] = [
-  { from: 0, to: 6.5, kind: 'bed', anim: 'sit' },
-  { from: 6.5, to: 8, kind: 'street', anim: 'idle' },
-  { from: 8, to: 19, kind: 'counter', anim: 'idle' },
-  { from: 19, to: 22, kind: 'social', anim: 'sit' },
-  { from: 22, to: 24, kind: 'bed', anim: 'sit' },
-];
-const BARKEEP: Block[] = [
-  { from: 0, to: 2, kind: 'counter', anim: 'idle' },
-  { from: 2, to: 10, kind: 'bed', anim: 'sit' },
-  { from: 10, to: 24, kind: 'counter', anim: 'idle' },
-];
-const LAW: Block[] = [
-  { from: 0, to: 6, kind: 'bed', anim: 'sit' },
-  { from: 6, to: 12, kind: 'counter', anim: 'idle' },
-  { from: 12, to: 14, kind: 'street', anim: 'idle' },
-  { from: 14, to: 20, kind: 'counter', anim: 'idle' },
-  { from: 20, to: 23, kind: 'street', anim: 'idle' },
-  { from: 23, to: 24, kind: 'bed', anim: 'sit' },
-];
-const OUTDOOR: Block[] = [
-  { from: 0, to: 5, kind: 'bed', anim: 'sit' },
-  { from: 5, to: 12, kind: 'workAny', anim: 'interact' },
-  { from: 12, to: 13, kind: 'social', anim: 'sit' },
-  { from: 13, to: 18, kind: 'workAny', anim: 'interact' },
-  { from: 18, to: 22, kind: 'social', anim: 'sit' },
-  { from: 22, to: 24, kind: 'bed', anim: 'sit' },
-];
-const NIGHTLIFE: Block[] = [
-  { from: 0, to: 3, kind: 'social', anim: 'sit' },
-  { from: 3, to: 13, kind: 'bed', anim: 'sit' },
-  { from: 13, to: 24, kind: 'social', anim: 'idle' },
-];
-const PREACH: Block[] = [
-  { from: 0, to: 6, kind: 'bed', anim: 'sit' },
-  { from: 6, to: 12, kind: 'workAny', anim: 'idle' },
-  { from: 12, to: 15, kind: 'street', anim: 'idle' },
-  { from: 15, to: 20, kind: 'workAny', anim: 'idle' },
-  { from: 20, to: 24, kind: 'bed', anim: 'sit' },
-];
-const IDLER: Block[] = [
-  { from: 0, to: 7, kind: 'bed', anim: 'sit' },
-  { from: 7, to: 12, kind: 'street', anim: 'idle' },
-  { from: 12, to: 14, kind: 'social', anim: 'sit' },
-  { from: 14, to: 19, kind: 'street', anim: 'idle' },
-  { from: 19, to: 23, kind: 'social', anim: 'sit' },
-  { from: 23, to: 24, kind: 'bed', anim: 'sit' },
-];
-const CAMPER: Block[] = [
-  { from: 0, to: 6, kind: 'camp', anim: 'sit' },
-  { from: 6, to: 20, kind: 'guard', anim: 'idle' },
-  { from: 20, to: 24, kind: 'camp', anim: 'sit' },
-];
-
-function scheduleFor(occ: string): Block[] {
-  switch (occ) {
-    case 'bartender':
-      return BARKEEP;
-    case 'sheriff':
-    case 'deputy':
-    case 'soldier':
-      return LAW;
-    case 'cowhand':
-    case 'rancher':
-    case 'farmer':
-    case 'miner':
-    case 'logger':
-    case 'stablehand':
-    case 'breeder':
-    case 'hunter':
-    case 'trapper':
-    case 'railroad':
-      return OUTDOOR;
-    case 'saloongirl':
-    case 'gambler':
-    case 'pianist':
-      return NIGHTLIFE;
-    case 'preacher':
-      return PREACH;
-    case 'outlaw':
-      return CAMPER;
-    case 'traveler':
-    case 'drifter':
-    case 'child':
-    case 'elder':
-      return IDLER;
-    default:
-      return SHOPKEEP;
+/** Nearest shelter (inside a door) to a point, within `maxD` px. */
+export function nearestShelter(game: Game, sid: string, x: number, y: number, maxD = 400): { x: number; y: number } | null {
+  let best: TownPlace | null = null;
+  let bd = maxD;
+  for (const s of townPlaces(game, sid).shelters) {
+    if (s.type === 'church' || s.type === 'chapel') continue;
+    const d = Math.hypot(s.x - x, s.y - y);
+    if (d < bd) {
+      bd = d;
+      best = s;
+    }
   }
+  return best ? { x: best.x, y: best.y } : null;
+}
+
+const FACE_OBJ_CACHE = new Map<string, number[]>();
+function faceIds(names: string[]): number[] {
+  const k = names.join(',');
+  let v = FACE_OBJ_CACHE.get(k);
+  if (!v) FACE_OBJ_CACHE.set(k, (v = names.map((n) => (O as Record<string, number>)[n]).filter((x): x is number => typeof x === 'number')));
+  return v;
 }
 
 export interface CombatProfile {
@@ -148,7 +126,6 @@ export class Npc extends Entity {
   private pathTarget: { x: number; y: number } | null = null;
   private repathT = 0;
   private blockIdx = -1;
-  private activity: HumanAnim = 'idle';
   bubble: { text: string; t: number } | null = null;
   barkCd = 0;
   stateT = 0;
@@ -166,6 +143,43 @@ export class Npc extends Entity {
   witnessT = 0;
   witnessCrime: string | null = null;
   witnessIncident = 0;
+  /** Current routine activity (data/social.ts ACTS). */
+  act: ActKind = 'idle';
+  /** Place kind of the current schedule block. */
+  place: SchedBlock['place'] = 'street';
+  /** True once the NPC has reached its scheduled spot. */
+  arrived = false;
+  /** The current destination is under a roof. */
+  targetIndoor = false;
+  private tKey = '';
+  private anchor: { x: number; y: number } | null = null;
+  private wanderOff = { x: 0, y: 0 };
+  private wanderT = 0;
+  private faceAngle: number | null = null;
+  private lookT = 0;
+  private strokeOn = false;
+  /** Conversation partner (or the group's current speaker) to face; set by SocialSystem. */
+  chatWith: Npc | null = null;
+  /** Seconds before this NPC starts another conversation. */
+  socialCd = 0;
+  /** Seconds before acknowledging the player again. */
+  greetCd = 0;
+  /** Recent bumps by the player (decays). */
+  bumps = 0;
+  /** Reaction cooldown (dodging horses, bumps). */
+  reactCd = 0;
+  /** Short gesture (tip of the hat, wave) in seconds. */
+  gestureT = 0;
+  /** Steering override from the social layer: run toward (or away from) a point for t seconds. */
+  steer: { x: number; y: number; speed: number; t: number; away?: boolean } | null = null;
+  /** Seconds a frightened civilian stays hidden (cower state). */
+  hideFor = 8;
+  private shelter: { x: number; y: number } | null = null;
+  /** Outdoors (cached a few times a second; lanterns and rain use it). */
+  outdoors = true;
+  private outdoorT = 0;
+  /** A witnessed crime already passed into town gossip. */
+  gossipNoted = false;
 
   constructor(def: NpcDef, game: Game) {
     super('npc', def.id);
@@ -203,14 +217,38 @@ export class Npc extends Entity {
     if (t) {
       this.x = t.x;
       this.y = t.y;
+      this.anchor = t;
+      this.pathTarget = t;
+      this.tKey = this.targetKey(game);
     }
   }
 
-  private currentBlock(game: Game): { block: Block; idx: number } {
-    const sched = scheduleFor(this.occupation);
-    const h = game.clock.hour;
-    const idx = sched.findIndex((b) => h >= b.from && h < b.to);
-    return { block: sched[Math.max(0, idx)]!, idx };
+  private currentBlock(game: Game): { block: SchedBlock; idx: number } {
+    return blockAt(this.occupation, this.personality, game.clock.hour, game.clock.day);
+  }
+
+  /** Whether weather drives this NPC under a roof for the given block. */
+  private shouldShelter(game: Game, block: SchedBlock): boolean {
+    const w = game.weather.current;
+    if (w.rain < SOCIAL_TUNING.rainShelter && w.snow < 0.6) return false;
+    if (this.occupation === 'outlaw' || this.occupation === 'soldier' || this.tag) return false;
+    return OUTDOOR_PLACES.has(block.place);
+  }
+
+  /** Changes whenever the NPC should pick a new destination (block, patrol step, rain, greeter flag). */
+  private targetKey(game: Game): string {
+    const { block, idx } = this.currentBlock(game);
+    const m = game.clock.minutes;
+    const step = block.place === 'patrol' ? Math.floor(m / 25) : block.act === 'stroll' || block.act === 'loiter' ? Math.floor(m / 45) : 0;
+    const wet = this.shouldShelter(game, block) ? 1 : 0;
+    const gf = this.def.greetUntilFlag && !game.flags[this.def.greetUntilFlag] ? 'g' : '';
+    return `${game.clock.day}|${idx}|${step}|${wet}|${gf}`;
+  }
+
+  private workBuildings(game: Game): string[] {
+    const types = this.def.workAt ? [this.def.workAt] : OCC_BUILDING[this.occupation] ?? [];
+    if (!types.length) return [];
+    return game.buildingsOf(this.settlementId).filter((b) => types.includes(b.type)).map((b) => b.id);
   }
 
   private currentTarget(game: Game): { x: number; y: number } | null {
@@ -219,32 +257,155 @@ export class Npc extends Entity {
     if (gf && !game.flags[gf] && this.def.workAt) {
       const b = game.buildingsOf(this.settlementId).find((x) => x.type === this.def.workAt);
       if (b) {
-        this.activity = 'idle';
+        this.act = 'idle';
+        this.place = 'shopfront';
         const tx = b.x + Math.floor(b.w / 2) + 2;
         const free = game.world.findNear(tx, b.y - 2, 4, (x, y) => !game.world.blockedPx(x * 16 + 8, y * 16 + 10) && !game.world.insideBuilding(x * 16 + 8, y * 16 + 10));
         if (free) return { x: free.x * 16 + 8, y: free.y * 16 + 10 };
       }
     }
     const { block, idx } = this.currentBlock(game);
-    const spots = game.spotsFor(this.settlementId);
+    this.act = block.act;
+    this.place = block.place;
+    const t = this.resolvePlace(game, block, idx);
+    if (!t) return null;
+    if (this.shouldShelter(game, block)) {
+      const sh = nearestShelter(game, this.settlementId, t.x, t.y);
+      if (sh) {
+        // Wait it out under a roof, just inside the nearest door.
+        this.act = this.occupation === 'child' ? 'idle' : 'loiter';
+        const j = ((hashString(this.id) % 3) - 1) * 6;
+        return { x: sh.x + (game.world.blockedPx(sh.x + j, sh.y) ? 0 : j), y: sh.y };
+      }
+    }
+    return t;
+  }
+
+  /** Resolve a routine place to a world position (px). Works for any settlement layout. */
+  private resolvePlace(game: Game, block: SchedBlock, idx: number): { x: number; y: number } | null {
+    const sid = this.settlementId;
+    const spots = game.spotsFor(sid);
     if (!spots.length) return null;
-    let pool: Spot[] = [];
-    const workB = this.def.workAt ? game.buildingsOf(this.settlementId).filter((b) => b.type === this.def.workAt).map((b) => b.id) : [];
-    if (block.kind === 'counter') pool = spots.filter((s) => (s.kind === 'counter' || s.kind === 'work') && (workB.length ? workB.includes(s.buildingId ?? '') : true));
-    else if (block.kind === 'workAny') {
-      pool = spots.filter((s) => (s.kind === 'work' || s.kind === 'corral' || s.kind === 'pray') && (workB.length ? workB.includes(s.buildingId ?? '') || !s.buildingId : true));
-      if (!pool.length) pool = spots.filter((s) => s.kind === 'work' || s.kind === 'corral' || s.kind === 'camp' || s.kind === 'street');
-    } else if (block.kind === 'bed') pool = spots.filter((s) => s.kind === 'bed' || s.kind === 'home');
-    else if (block.kind === 'social') pool = spots.filter((s) => s.kind === 'social' || s.kind === 'camp');
-    else if (block.kind === 'guard') pool = spots.filter((s) => s.kind === 'guard' || s.kind === 'camp');
-    else pool = spots.filter((s) => s.kind === block.kind);
-    if (!pool.length) pool = spots.filter((s) => s.kind === 'street' || s.kind === 'social' || s.kind === 'camp');
-    if (!pool.length) pool = spots;
-    const pick = pool[hashString(this.id + ':' + idx + ':' + (block.kind === 'bed' ? '' : game.clock.day)) % pool.length]!;
-    this.activity = block.anim;
-    // Small per-NPC offset so groups don't stack.
-    const jitter = (hashString(this.id) % 7) - 3;
-    return { x: pick.x * 16 + 8 + (block.kind === 'street' ? jitter * 3 : 0), y: pick.y * 16 + 10 };
+    const W = game.world;
+    const day = game.clock.day;
+    const hid = hashString(this.id);
+    const hs = (salt: string) => hashString(this.id + ':' + salt);
+    const pick = <T>(pool: T[], salt: string): T | null => (pool.length ? pool[hs(salt) % pool.length]! : null);
+    const of = (...kinds: Spot['kind'][]) => spots.filter((s) => kinds.includes(s.kind));
+    const inTypes = (types: string[]) => {
+      const ids = game.buildingsOf(sid).filter((b) => types.includes(b.type)).map((b) => b.id);
+      return (s: Spot) => ids.includes(s.buildingId ?? '');
+    };
+    const workB = this.workBuildings(game);
+    const inWork = (s: Spot) => workB.includes(s.buildingId ?? '');
+    const tp = townPlaces(game, sid);
+    const px = (s: { x: number; y: number } | null | undefined, outdoor = false): { x: number; y: number } | null => {
+      if (!s) return null;
+      const p = 'type' in s ? { x: s.x, y: s.y } : { x: s.x * 16 + 8, y: s.y * 16 + 10 };
+      // Spread people sharing a spot along the boardwalk / around the table.
+      const j = outdoor ? ((hid % 5) - 2) * 7 : ((hid % 3) - 1) * 4;
+      if (j && !W.blockedPx(p.x + j, p.y) && !W.insideBuilding(p.x + j, p.y) === !W.insideBuilding(p.x, p.y)) p.x += j;
+      return p;
+    };
+    const bedSpot = () => pick(of('bed', 'home'), 'bed');
+    let r: { x: number; y: number } | null = null;
+    switch (block.place) {
+      case 'bed':
+        r = px(bedSpot());
+        break;
+      case 'home': {
+        const bed = bedSpot();
+        const table = spots.find((s) => s.kind === 'home' && s.buildingId && s.buildingId === bed?.buildingId);
+        r = px(table ?? pick(of('home'), 'home') ?? bed);
+        break;
+      }
+      case 'counter': {
+        const pool = spots.filter((s) => (s.kind === 'counter' || s.kind === 'work') && (workB.length ? inWork(s) : true));
+        const counters = pool.filter((s) => s.kind === 'counter');
+        r = px(pick(counters.length ? counters : pool, String(idx)));
+        break;
+      }
+      case 'work': {
+        let pool = workB.length ? spots.filter((s) => s.kind === 'work' && inWork(s)) : [];
+        if (!pool.length && workB.length) pool = spots.filter((s) => s.kind === 'counter' && inWork(s));
+        if (!pool.length && (block.act === 'piano' || block.act === 'deal')) pool = spots.filter((s) => s.kind === 'work' && inTypes(['saloon'])(s));
+        if (!pool.length) pool = spots.filter((s) => (s.kind === 'work' || s.kind === 'corral') && !s.buildingId);
+        if (!pool.length) pool = of('camp', 'street');
+        r = px(pick(pool, String(idx)), !pool[0]?.buildingId);
+        break;
+      }
+      case 'field': {
+        let pool = spots.filter((s) => s.kind === 'work' && !s.buildingId);
+        if (!pool.length) pool = of('corral', 'trough');
+        if (pool.length) r = px(pick(pool, 'field' + idx), true);
+        else r = px(pick(tp.doorfronts.filter((d) => d.type === 'barn' || d.type === 'stable'), 'field'), true);
+        break;
+      }
+      case 'corral': {
+        let pool = of('corral', 'trough');
+        if (!pool.length) pool = of('stall');
+        r = px(pick(pool, 'corral' + idx), true);
+        break;
+      }
+      case 'stall': {
+        let pool = spots.filter((s) => s.kind === 'stall' && (workB.length ? inWork(s) : true));
+        if (!pool.length) pool = of('stall');
+        if (!pool.length) pool = of('corral');
+        r = px(pick(pool, 'stall' + idx));
+        break;
+      }
+      case 'street': {
+        const pool: { x: number; y: number }[] = [...of('street'), ...tp.doorfronts];
+        const step = block.act === 'stroll' || block.act === 'loiter' ? Math.floor(game.clock.minutes / 45) : 0;
+        // Children pick the same play street each day, so they can find each other.
+        const salt = block.act === 'play' ? null : `st${idx}:${day}:${step}`;
+        r = px(salt === null ? pool[hashString(`${sid}:play:${day}:${idx}`) % pool.length] : pick(pool, salt), true);
+        break;
+      }
+      case 'saloon': {
+        let pool = spots.filter((s) => s.kind === 'social' && inTypes(['saloon'])(s));
+        if (!pool.length) pool = of('social', 'camp');
+        r = px(pick(pool, `sal${idx}:${day}`));
+        break;
+      }
+      case 'church':
+        r = px(pick(of('pray'), 'pray')) ?? px(pick(of('street'), 'church'), true);
+        break;
+      case 'porch': {
+        const porches = tp.doorfronts.filter((d) => PORCH_TYPES.includes(d.type));
+        // Only a few porches are "the" porches, so porch-sitters gather in little groups.
+        const few = porches.slice(0, Math.min(3, porches.length));
+        r = px(few.length ? few[hs('porch' + day) % few.length] : pick(of('social', 'camp', 'street'), 'porch'), true);
+        break;
+      }
+      case 'shopfront': {
+        const mine = tp.doorfronts.find((d) => workB.includes(d.bid));
+        r = px(mine ?? pick(tp.doorfronts, 'front'), true);
+        break;
+      }
+      case 'patrol': {
+        const beat: { x: number; y: number }[] = [...of('street', 'guard'), ...tp.doorfronts.filter((d) => BEAT_TYPES.includes(d.type))];
+        if (beat.length) r = px(beat[(hid + Math.floor(game.clock.minutes / 25)) % beat.length], true);
+        break;
+      }
+      case 'camp': {
+        const pool = of('camp');
+        r = px(pick(pool.length ? pool : of('social'), 'camp' + idx), true);
+        break;
+      }
+      case 'guard': {
+        const pool = of('guard');
+        r = px(pick(pool.length ? pool : of('camp', 'street'), 'guard' + idx), true);
+        break;
+      }
+      case 'social': {
+        const pool = of('social');
+        r = px(pick(pool.length ? pool : of('camp', 'street'), `soc${idx}:${day}`));
+        break;
+      }
+    }
+    if (!r) r = px(pick(of('street', 'social', 'camp'), 'any' + idx), true) ?? px(pick(spots, 'any'));
+    return r;
   }
 
   say(text: string, seconds = 3.5): void {
@@ -255,6 +416,16 @@ export class Npc extends Entity {
     if (this.state === 'dead') return;
     this.barkCd = Math.max(0, this.barkCd - dt);
     this.fireCd = Math.max(0, this.fireCd - dt);
+    this.socialCd -= dt;
+    this.greetCd -= dt;
+    this.reactCd -= dt;
+    this.gestureT -= dt;
+    if (this.bumps > 0) this.bumps = Math.max(0, this.bumps - dt * 0.05);
+    this.outdoorT -= dt;
+    if (this.outdoorT <= 0) {
+      this.outdoorT = 0.5 + (hashString(this.id) % 10) * 0.02;
+      this.outdoors = !game.world.insideBuilding(this.x, this.y);
+    }
     this.stateT += dt;
     if (this.bubble) {
       this.bubble.t -= dt;
@@ -277,10 +448,22 @@ export class Npc extends Entity {
         this.vx = this.vy = 0;
         if (!game.dialogue.isOpenWith(this.id)) this.state = 'schedule';
         break;
-      case 'cower':
-        this.anim = 'sit';
-        if (this.stateT > 8) this.setState('schedule');
+      case 'cower': {
+        // Hide: duck through the nearest door if there is one close by, then crouch until it's quiet.
+        if (this.stateT < 0.05 && !this.shelter && this.outdoors) this.shelter = nearestShelter(game, this.settlementId, this.x, this.y, 180);
+        const sh = this.shelter;
+        if (sh && this.stateT < 7 && Math.hypot(sh.x - this.x, sh.y - this.y) > 6) this.goTo(sh.x, sh.y, dt, game, 75);
+        else {
+          this.vx = this.vy = 0;
+          this.anim = 'sit';
+        }
+        if (this.stateT > this.hideFor && game.combat.tension < 0.2) {
+          this.shelter = null;
+          this.hideFor = 8;
+          this.setState('schedule');
+        }
         break;
+      }
       case 'flee': {
         const ax = this.x - p.x;
         const ay = this.y - p.y;
@@ -328,30 +511,38 @@ export class Npc extends Entity {
         break;
       default:
         this.updateSchedule(dt, game);
-        // Ambient barks when the player passes by.
-        if (dp < 48 && this.barkCd <= 0 && !p.mount && game.time - game.lastBarkAt > 4) {
+        // Ambient barks when the player passes by (not mid-conversation; workers may mutter about the job).
+        if (dp < 48 && this.barkCd <= 0 && !p.mount && !this.chatWith && this.act !== 'sleep' && game.time - game.lastBarkAt > 4) {
           game.lastBarkAt = game.time;
           this.barkCd = 25 + this.rng.range(0, 20);
-          const line = game.dialogue.bark(this);
+          const mutter = this.arrived ? ACTS[this.act].mutter : undefined;
+          const line = mutter && this.rng.chance(0.4) ? this.rng.pick(mutter) : game.dialogue.bark(this);
           if (line) this.say(line);
-          this.faceTo(p.x, p.y);
+          if (!mutter) this.faceTo(p.x, p.y);
         }
     }
-    this.animT += dt * (this.anim === 'run' ? 10 : this.anim === 'walk' ? 7 : 1.5);
+    this.animT += dt * (this.anim === 'run' ? 10 : this.anim === 'walk' ? 7 : this.anim === 'interact' ? 4 : 1.5);
   }
 
   override updateLow(dt: number, game: Game): void {
-    // Off-screen: snap between schedule spots instead of walking.
+    // Off-screen (coarse LOD): snap between schedule spots instead of walking; no social or work simulation.
     if (this.state !== 'schedule' || this.fixed) return;
-    const { idx } = this.currentBlock(game);
-    if (idx !== this.blockIdx) {
-      this.blockIdx = idx;
+    const key = this.targetKey(game);
+    if (key !== this.tKey) {
+      this.tKey = key;
       const t = this.currentTarget(game);
+      this.anchor = t;
+      this.pathTarget = t;
+      this.path = [];
       if (t) {
         this.x = t.x;
         this.y = t.y;
+        this.arrived = true;
+        this.faceAngle = null;
       }
     }
+    this.chatWith = null;
+    this.steer = null;
     void dt;
   }
 
@@ -368,21 +559,166 @@ export class Npc extends Entity {
       else this.anim = 'idle';
       return;
     }
-    const { idx } = this.currentBlock(game);
-    if (idx !== this.blockIdx || !this.pathTarget) {
-      this.blockIdx = idx;
-      this.pathTarget = this.currentTarget(game);
+    // Social steering (dodging a horse, being shoved, playing tag) overrides the schedule briefly.
+    const st = this.steer;
+    if (st) {
+      st.t -= dt;
+      const dx = (st.away ? this.x - st.x : st.x - this.x) || 0.01;
+      const dy = st.away ? this.y - st.y : st.y - this.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (st.speed > 0 && (st.away || d > 4)) {
+        this.moveDir(dx / d, dy / d, st.speed, dt, game);
+        this.anim = st.speed > 60 ? 'run' : 'walk';
+      } else {
+        this.vx = this.vy = 0;
+        this.anim = 'idle';
+      }
+      if (st.t <= 0) {
+        this.steer = null;
+        this.path = [];
+        this.repathT = 0;
+      }
+      return;
+    }
+    // Mid-conversation: stop and face whoever is talking.
+    if (this.chatWith) {
+      const o = this.chatWith;
+      if (!o.alive || o.state !== 'schedule') this.chatWith = null;
+      else {
+        this.vx = this.vy = 0;
+        this.faceTo(o.x, o.y);
+        const seated = this.arrived && ACTS[this.act].anim === 'sit';
+        this.anim = seated ? 'sit' : this.gestureT > 0 ? 'interact' : 'idle';
+        return;
+      }
+    }
+    const key = this.targetKey(game);
+    if (key !== this.tKey || !this.pathTarget) {
+      this.tKey = key;
+      this.anchor = this.currentTarget(game);
+      this.pathTarget = this.anchor;
+      this.targetIndoor = !!(this.anchor && game.world.insideBuilding(this.anchor.x, this.anchor.y));
+      this.wanderOff = { x: 0, y: 0 };
       this.path = [];
+      this.arrived = false;
+      this.faceAngle = null;
     }
-    const t = this.pathTarget;
-    if (!t) return;
-    const d = Math.hypot(t.x - this.x, t.y - this.y);
-    if (d > 5) this.goTo(t.x, t.y, dt, game);
-    else {
-      this.vx = this.vy = 0;
-      this.anim = this.activity;
-      if (this.activity === 'interact' && this.animT % 6 > 3) this.anim = 'idle';
+    const a = this.anchor;
+    if (!a) return;
+    const tx = a.x + this.wanderOff.x;
+    const ty = a.y + this.wanderOff.y;
+    const d = Math.hypot(tx - this.x, ty - this.y);
+    if (d > 5) {
+      if (this.arrived && d < 70) {
+        // Short shuffles while working (sweeping along the boardwalk, moving between troughs): no pathfinding.
+        const def = ACTS[this.act];
+        let nx = (tx - this.x) / d;
+        let ny = (ty - this.y) / d;
+        if (this.act === 'stagger') {
+          const w = Math.sin(game.time * 3.1 + (hashString(this.id) % 7)) * 0.8;
+          nx += -ny * w;
+          ny += nx * w;
+        }
+        this.moveDir(nx, ny, this.walk * (this.act === 'stagger' ? 0.55 : def.anim === 'walk' ? 0.8 : 0.6), dt, game);
+        this.anim = 'walk';
+        if (Math.abs(this.vx) + Math.abs(this.vy) < 1) this.wanderOff = { x: 0, y: 0 };
+      } else this.goTo(tx, ty, dt, game);
+      if (this.act === 'patrol' && this.gestureT > 0) this.anim = 'idle';
+      return;
     }
+    this.vx = this.vy = 0;
+    if (!this.arrived) {
+      this.arrived = true;
+      this.faceAngle = this.findFacing(game);
+      this.wanderT = 1 + this.rng.range(0, 2);
+    }
+    this.doActivity(dt, game);
+  }
+
+  /** On arrival, turn toward the workplace object (anvil, bar, stove, trough…), if one is at hand. */
+  private findFacing(game: Game): number | null {
+    const names = ACTS[this.act].faceObj;
+    if (!names?.length) return null;
+    const ids = faceIds(names);
+    const W = game.world;
+    const cx = Math.floor(this.x / 16);
+    const cy = Math.floor((this.y - 2) / 16);
+    let best: { x: number; y: number } | null = null;
+    let bd = 99;
+    for (let dy = -2; dy <= 2; dy++)
+      for (let dx = -2; dx <= 2; dx++) {
+        if (!ids.includes(W.objAt(cx + dx, cy + dy))) continue;
+        const dd = Math.abs(dx) + Math.abs(dy);
+        if (dd < bd) {
+          bd = dd;
+          best = { x: (cx + dx) * 16 + 8, y: (cy + dy) * 16 + 8 };
+        }
+      }
+    return best ? Math.atan2(best.y - this.y, best.x - this.x) : null;
+  }
+
+  /** The visible work/leisure loop once the NPC stands at its spot. */
+  private doActivity(dt: number, game: Game): void {
+    const def = ACTS[this.act];
+    const h = hashString(this.id);
+    // Stroke cycle: alternate base pose and stroke pose.
+    let anim: HumanAnim = def.anim === 'walk' ? 'idle' : def.anim;
+    let stroke = false;
+    if (def.alt && def.period) {
+      const ph = ((game.time + (h % 97) * 0.13) % def.period) / def.period;
+      stroke = ph < (def.duty ?? 0.5);
+      if (stroke) anim = def.alt;
+    }
+    if (this.gestureT > 0 && anim !== 'sit') anim = 'interact';
+    this.anim = anim;
+    // One particle burst per stroke, only where the camera can see it.
+    if (stroke && !this.strokeOn && def.fx && game.isNearCamera(this.x, this.y, 40)) this.workFx(def.fx, game);
+    this.strokeOn = stroke;
+    // Facing: work object, horse being brushed, or a look around now and then.
+    this.lookT -= dt;
+    if (this.act === 'brush' && this.lookT <= 0) {
+      const horse = game.spatial.nearest(this.x, this.y, 40, (e) => e.kind === 'horse');
+      if (horse) this.faceAngle = Math.atan2(horse.y - this.y, horse.x - this.x);
+    }
+    if (this.lookT <= 0) {
+      this.lookT = 2.5 + this.rng.range(0, 4);
+      if (def.lookAround && (this.faceAngle === null || this.rng.chance(0.4))) this.angle = this.rng.pick([0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 2]);
+      else if (this.faceAngle !== null) this.angle = this.faceAngle;
+    } else if (this.faceAngle !== null && !def.lookAround) this.angle = this.faceAngle;
+    // Drift around the anchor (sweeping the boardwalk, hoeing a row, children at play, a drunk's weave).
+    if (def.wander) {
+      this.wanderT -= dt;
+      if (this.wanderT <= 0) {
+        this.wanderT = (def.wanderSec ?? 4) * (0.7 + this.rng.next() * 0.6);
+        const r = def.wander;
+        const ox = this.rng.range(-r, r);
+        const oy = def.axis === 'x' ? 0 : this.rng.range(-r * 0.6, r * 0.6);
+        const a = this.anchor!;
+        const W = game.world;
+        const inside = !W.insideBuilding(a.x, a.y);
+        const nx = a.x + ox;
+        const ny = a.y + oy;
+        if (!W.blockedPx(nx, ny) && !W.insideBuilding(nx, ny) === inside && W.lineOfSight(this.x, this.y - 4, nx, ny - 4)) this.wanderOff = { x: ox, y: oy };
+      }
+    }
+  }
+
+  private workFx(fx: NonNullable<(typeof ACTS)[ActKind]['fx']>, game: Game): void {
+    const r = game.renderer;
+    const f = Math.cos(this.angle);
+    const hx = this.x + f * 7;
+    const hy = this.y - 4;
+    if (fx === 'spark') for (let i = 0; i < 3; i++) r.spawn({ x: hx, y: hy, z: 8, kind: 'spark', color: i ? '#ffcc55' : '#fff2b0', vx: this.rng.range(-30, 30), vy: this.rng.range(-10, 10), vz: this.rng.range(15, 40), life: 0.35, max: 0.35, size: 1 });
+    else if (fx === 'dust') r.dust(hx, this.y, '#b8a07a', 2);
+    else if (fx === 'hay') r.dust(hx, this.y - 2, '#d8c070', 2);
+    else if (fx === 'chips') for (let i = 0; i < 2; i++) r.spawn({ x: hx, y: hy, z: 6, kind: 'dust', color: '#c8a070', vx: this.rng.range(-25, 25), vz: this.rng.range(10, 25), life: 0.5, max: 0.5, size: 1 });
+    else if (fx === 'smoke' && this.rng.chance(0.5)) r.spawn({ x: hx, y: hy, z: 14, kind: 'smoke', color: '#d8d0c4', vx: 3, vy: -2, vz: 8, life: 1.6, max: 1.6, size: 2 });
+  }
+
+  /** Jump out of the way of something (a galloping horse, a shove). */
+  dodge(fromX: number, fromY: number, speed: number, seconds: number): void {
+    this.steer = { x: fromX, y: fromY, speed, t: seconds, away: true };
+    this.chatWith = null;
   }
 
   /** Walk toward a point using A* paths through doors. */
@@ -454,6 +790,16 @@ export class Npc extends Entity {
     game.onNpcKilled(this, byPlayer);
   }
 
+  /** The tool in hand for the current activity (only while doing it, or a bottle on a drunk's walk). */
+  private heldProp(game: Game): PropKind | null {
+    if (this.state !== 'schedule' || this.chatWith && this.act !== 'drink') return null;
+    const p = ACTS[this.act].prop;
+    if (!p) return null;
+    if (!this.arrived && this.act !== 'stagger' && this.act !== 'feed') return null;
+    void game;
+    return p;
+  }
+
   override get sortY(): number {
     return this.y;
   }
@@ -470,9 +816,26 @@ export class Npc extends Entity {
     r.shadow(this.x, this.y, 5, 2.5, 0);
     const w = anim === 'dead' ? PW + 8 : PW;
     const child = this.occupation === 'child';
+    const live = this.state === 'schedule' || this.state === 'talk' || this.state === 'follow' || this.state === 'flee' || this.state === 'cower' || this.state === 'guard';
+    // Hand props and lanterns (held in front, or behind the body when facing away).
+    const prop = live ? this.heldProp(game) : null;
+    const lantern = live && !child && this.outdoors && game.clock.daylight < SOCIAL_TUNING.lanternDaylight && this.act !== 'sleep' && anim !== 'sit';
+    if (dir === 'up') {
+      if (prop) drawProp(r, prop, this.x, this.y, dir, flip, anim === 'interact');
+      if (lantern) drawLantern(r, this.x - 6, this.y - 10, game.time);
+    }
     if (child) r.spriteScaled(fr, this.x, this.y + 1, flip, 0.85);
     else r.sprite(fr, Math.round(this.x - w / 2), Math.round(this.y - PH + 1), flip);
+    if (dir !== 'up') {
+      if (prop) drawProp(r, prop, this.x, this.y, dir, flip, anim === 'interact');
+      if (lantern) drawLantern(r, this.x + (dir === 'side' ? (flip ? 5 : -5) : -7), this.y - 10, game.time);
+    }
+    if (lantern) r.lights.push({ x: this.x, y: this.y - 10, r: 44, color: 'rgba(255,186,100,0.95)', flicker: true });
     const top = child ? Math.round(PH * 0.85) : PH;
+    if (live && this.act === 'sleep' && this.arrived && this.state === 'schedule' && !this.bubble) {
+      const zt = (game.time * 0.6 + (hashString(this.id) % 10) * 0.1) % 1;
+      r.text(this.x + 4 + zt * 4, this.y - top + 4 - zt * 8, 'z', 'rgba(220,230,255,' + (1 - zt).toFixed(2) + ')');
+    }
     if (this.bubble) game.ui.worldBubble(this.x, this.y - top - 2, this.bubble.text, this.name);
     if (this.hostile && this.state !== 'dead' && this.state !== 'surrender' && this.state !== 'hogtied') r.rect(this.x - 1, this.y - top - 3, 2, 2, '#d83a2a');
     else if (this.state !== 'dead') {
@@ -483,6 +846,94 @@ export class Npc extends Entity {
       }
     }
   }
+}
+
+const WOOD = '#7a5434';
+const IRON = '#3c3c44';
+const STEEL = '#9a9aa6';
+
+/** Tiny pixel props over the 20x28 human sprite. Placeholder art until humanSprite gains work poses. */
+function drawProp(r: Renderer, kind: PropKind, x: number, y: number, dir: Dir, flip: boolean, stroke: boolean): void {
+  const s = dir === 'side' ? (flip ? -1 : 1) : dir === 'down' ? 1 : -1;
+  const hx = Math.round(x + (dir === 'side' ? 6 * s : 6 * s));
+  const hy = Math.round(y - (dir === 'side' ? 12 : 11));
+  switch (kind) {
+    case 'hammer':
+      if (stroke) {
+        r.rect(s > 0 ? hx : hx - 3, hy, 4, 1, WOOD);
+        r.rect(hx + (s > 0 ? 3 : -4), hy - 1, 2, 3, IRON);
+      } else {
+        r.rect(hx, hy - 4, 1, 4, WOOD);
+        r.rect(hx - 1, hy - 6, 3, 2, IRON);
+      }
+      break;
+    case 'pick':
+    case 'axe':
+    case 'hoe': {
+      const head = kind === 'pick' ? STEEL : kind === 'axe' ? STEEL : IRON;
+      if (stroke) {
+        r.rect(hx + (s > 0 ? 0 : -6), hy + 2, 7, 1, WOOD);
+        r.rect(hx + (s > 0 ? 6 : -7), hy + 1, 2, kind === 'hoe' ? 3 : 4, head);
+      } else {
+        r.rect(hx, hy - 7, 1, 9, WOOD);
+        if (kind === 'pick') r.rect(hx - 2, hy - 8, 5, 1, head);
+        else if (kind === 'axe') r.rect(hx + (s > 0 ? 1 : -2), hy - 7, 2, 3, head);
+        else r.rect(hx + (s > 0 ? 1 : -2), hy - 8, 2, 1, head);
+      }
+      break;
+    }
+    case 'broom': {
+      const sw = stroke ? 2 * s : -2 * s;
+      r.rect(hx, hy - 3, 1, 12, '#9a7a4a');
+      r.rect(hx - 1 + sw, hy + 8, 4, 3, '#d6bc6a');
+      break;
+    }
+    case 'rag':
+      r.rect(hx + (stroke ? s : 0), hy + 1, 2, 2, '#e8e0cc');
+      break;
+    case 'brush':
+      r.rect(hx + (stroke ? s * 2 : 0), hy - (stroke ? 2 : 0), 3, 1, WOOD);
+      r.rect(hx + (stroke ? s * 2 : 0), hy + 1 - (stroke ? 2 : 0), 3, 1, '#c8b080');
+      break;
+    case 'hay':
+      r.rect(hx - 2, hy - 1, 5, 3, '#d8c070');
+      r.rect(hx - 1, hy - 2, 3, 1, '#e8d488');
+      break;
+    case 'book':
+      r.rect(hx - 1, hy - (stroke ? 3 : 0), 3, 3, '#5a2a22');
+      r.rect(hx, hy - (stroke ? 3 : 0), 1, 3, '#e8dcc0');
+      break;
+    case 'cards':
+      r.rect(hx - 1, hy, 2, 2, '#f4f0e4');
+      r.rect(hx + 1, hy + 1, 1, 1, '#b83a2a');
+      break;
+    case 'bowl':
+      r.rect(hx - 1, hy + 1, 3, 1, '#8a6a4a');
+      if (stroke) r.rect(hx, hy - 3, 1, 3, STEEL);
+      break;
+    case 'mug':
+      r.rect(hx, hy - (stroke ? 4 : 0), 2, 2, '#d8a040');
+      r.rect(hx, hy - (stroke ? 4 : 0), 2, 1, '#f4ecd4');
+      break;
+    case 'pen':
+      r.rect(hx, hy + (stroke ? 1 : 0), 1, 2, '#2a2a30');
+      break;
+    case 'ladle':
+      r.rect(hx, hy - (stroke ? 1 : 3), 1, 4, STEEL);
+      r.rect(hx - 1, hy + (stroke ? 3 : 1), 2, 1, STEEL);
+      break;
+    case 'bottle':
+      r.rect(hx, hy - 1, 1, 3, '#3a6a3a');
+      r.rect(hx, hy - 2, 1, 1, '#c8b890');
+      break;
+  }
+}
+
+function drawLantern(r: Renderer, x: number, y: number, t: number): void {
+  const sway = Math.round(Math.sin(t * 2.2) * 0.6);
+  r.rect(x + sway, y - 2, 1, 2, IRON);
+  r.rect(x - 1 + sway, y, 3, 4, IRON);
+  r.rect(x + sway, y + 1, 1, 2, '#ffd27a');
 }
 
 const HATS: HumanLook['hat'][] = ['cowboy', 'cowboy', 'cowboy', 'bowler', 'flat', 'derby', 'cap', 'none'];

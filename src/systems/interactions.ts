@@ -44,7 +44,7 @@ export class InteractionSystem {
   update(): void {
     const g = this.game;
     const prev = this.current?.title;
-    this.current = g.player.alive && !g.ui.modalOpen ? this.find() : null;
+    this.current = g.player.alive && !g.ui.modalOpen && !g.jobs.busy ? this.find() : null;
     if (this.current?.title !== prev) this.selected = 0;
     if (!this.current) return;
     const acts = this.current.actions;
@@ -259,6 +259,8 @@ export class InteractionSystem {
     acts.push({ label: 'Talk', run: () => g.dialogue.start(n) });
     if (n.def.shop && (n.def.shop !== 'stable_sayen' || g.flags.sayen_shop_open)) acts.push({ label: 'Shop', run: () => g.ui.openShop(n.def.shop!) });
     acts.push({ label: 'Greet', run: () => { const l = g.dialogue.bark(n); if (l) n.say(l); g.changeOpinion(n.id, 0.5); } });
+    const work = g.jobs.npcAction(n);
+    if (work) acts.push(work);
     const occ = n.occupation === 'saloongirl' ? 'hostess' : n.occupation;
     return { title: n.name, subtitle: occ.charAt(0).toUpperCase() + occ.slice(1), x: n.x, y: n.y - 30, actions: acts };
   }
@@ -408,6 +410,12 @@ export class InteractionSystem {
         title = title || poi.name;
         acts.push({ label: 'Read what you found', run: () => g.ui.openLore(poi.doc!) });
       }
+    }
+    // Notice boards, job deliveries and flags, labour (ore, timber, wheat) and homesteads.
+    const jobs = g.jobs.worldTarget();
+    if (jobs) {
+      title = title || jobs.title;
+      acts.push(...jobs.actions);
     }
     if (!acts.length) return null;
     return { title, x: p.x, y: p.y - 34, actions: acts };

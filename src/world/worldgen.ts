@@ -6,7 +6,7 @@
  */
 import { fbm, hashf, ridged, valueNoise } from '../core/rng.ts';
 import { clamp, smoothstep } from '../core/math.ts';
-import { LAKES, POIS, RAILROAD, REGIONS, RIVERS, ROADS, SETTLEMENTS, WORLD_H, WORLD_W, WORLD_SEED, type RegionDef } from '../data/world.ts';
+import { LAKES, POIS, RAILROAD, REGIONS, RIVERS, ROADS, SETTLEMENTS, SIGNPOSTS, WORLD_H, WORLD_W, WORLD_SEED, type RegionDef } from '../data/world.ts';
 import { F, G, O } from './tiles.ts';
 import { World } from './world.ts';
 import { buildSettlement, type Corral, type Spot } from './settlements.ts';
@@ -285,6 +285,9 @@ export function generateWorld(onProgress?: (p: number, label: string) => void): 
     corrals.push(...b.corrals);
   }
 
+  // --- 8b. Junction signposts ------------------------------------------------------
+  for (const [sx, sy] of SIGNPOSTS) placeSignpost(W, sx, sy);
+
   // --- 9. Make POIs reachable ---------------------------------------------------
   for (const p of POIS) {
     for (let dy = -3; dy <= 3; dy++)
@@ -299,6 +302,31 @@ export function generateWorld(onProgress?: (p: number, label: string) => void): 
   }
   onProgress?.(1, 'Ready');
   return { world: W, spots, corrals };
+}
+
+/**
+ * Put a signpost on the free tile nearest (x, y): beside the road, never on it,
+ * on water, rail, a building or a settlement's yard. Deterministic (fixed scan order).
+ */
+function placeSignpost(W: World, x: number, y: number): void {
+  for (let r = 0; r <= 4; r++)
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const tx = x + dx;
+        const ty = y + dy;
+        if (!W.inBounds(tx, ty)) continue;
+        const i = W.idx(tx, ty);
+        const g = W.ground[i]!;
+        if (g === G.DeepWater || g === G.ShallowWater || g === G.Ice || g === G.Cliff || g === G.Mud) continue;
+        if (W.flags[i]! & (F.Road | F.Trail | F.Rail | F.River | F.Bridge | F.Settlement) || W.buildingAt[i]) continue;
+        // Must stand next to the road it labels.
+        let byRoad = false;
+        for (let ny = -1; ny <= 1 && !byRoad; ny++) for (let nx = -1; nx <= 1; nx++) if (W.flagAt(tx + nx, ty + ny) & (F.Road | F.Trail)) byRoad = true;
+        if (!byRoad) continue;
+        W.obj[i] = O.Signpost;
+        return;
+      }
 }
 
 function carveValleys(W: World): void {

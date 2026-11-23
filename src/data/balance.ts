@@ -84,4 +84,80 @@ export const BALANCE = {
     /** Bounty at which marshals or bounty hunters get sent out. */
     hunterThreshold: 40,
   },
+
+  /** Paid work. Formulas and rationale: design/gdd/economy-jobs.md § Formulas. */
+  jobs: {
+    /** Pay multiplier gained per skill level above 1 (skill levels run 1..6). */
+    skillStep: 0.08,
+    /** Pay multiplier per point of the employer's faction reputation (-100..100). */
+    repStep: 0.005,
+    repMin: 0.8,
+    repMax: 1.25,
+    /** Per-town employer standing: +1 per finished job, -2 per failed or quit job. */
+    standingStep: 0.01,
+    standingMax: 20,
+    standingMin: -10,
+    standingGain: 1,
+    standingLoss: 2,
+    /** Clamp on job performance (late delivery, missed strikes, steers lost). */
+    perfMin: 0.5,
+    perfMax: 1.2,
+    /** Ceiling on the product of all pay multipliers. */
+    maxMul: 1.9,
+    /** Daily demand roll per offer: pay × [demandMin, demandMax]. */
+    demandMin: 0.9,
+    demandMax: 1.15,
+    /** Delivery deadline in game minutes = deliveryGrace + straight-line tiles × minutesPerTile[template.pace]. */
+    deliveryGrace: { normal: 25, express: 12 } as Record<string, number>,
+    minutesPerTile: { normal: 0.4, express: 0.26 } as Record<string, number>,
+    /** On-time delivery bonus at an instant arrival (scales with time left). */
+    earlyBonus: 0.15,
+    /** Pay lost per game hour late. */
+    latePenaltyPerHour: 0.3,
+    /** Strike mini-game: gauge cycles per second and the sweet spot on the 0..1 bar. */
+    strikeSpeed: 1.35,
+    strikeSweet: 0.8,
+    /** Extra misses allowed beyond the strikes needed before a task is botched. */
+    strikeMissAllowance: 3,
+    /** Game minutes a single strike task (dig, chop, mend) takes. */
+    taskMinutes: { dig: 20, chop: 15, harvest: 10, mend: 15, feed: 5, forge: 30, pour: 20 } as Record<string, number>,
+    /** A delivery this many game hours past its deadline is cancelled: the consignee hired someone else. */
+    lateCutoffHours: 6,
+    /** Herding: how strongly a fleeing steer steers toward the pen (0 = pure flight). */
+    herdPull: 0.55,
+    /** A steer within this many px of the corral gate counts as penned. */
+    penRadius: 44,
+    /** Bandits on a strongbox run appear between these fractions of the route. */
+    ambushWindow: [0.3, 0.7] as [number, number],
+    /** Bounty paid for a body instead of a live prisoner. */
+    bountyDeadMul: 0.5,
+    /** Outlaws spawn when you come within this many px of the reported camp. */
+    bountySpawnRadius: 700,
+    /** Honor below this and no one hires you for honest work. */
+    minHonor: -60,
+    /** Expected real minutes of riding per 100 tiles (used only for hourly-rate balance checks). */
+    rideMinutesPer100Tiles: 0.35,
+  },
+
+  /** Regional trade. See design/gdd/economy-jobs.md § Formulas (Trade). */
+  trade: {
+    /** Price multiplier where a good is produced / where it is scarce. */
+    producedMul: 0.7,
+    scarceMul: 1.45,
+    /** Market saturation added per unit of a trade good sold (ordinary goods use saturationPerSale). */
+    saturationPerSale: 0.06,
+    tradeSaturationPerSale: 0.12,
+    /** Share of the price a fully flooded market (saturation 1) takes off: price × (1 − sat × depth). */
+    saturationDepth: 0.85,
+    /** Saturation recovered per game day. */
+    saturationRecovery: 0.25,
+    /** A shop never buys an item it also sells for more than this share of its own asking price. */
+    maxResaleRatio: 0.9,
+  },
+
+  /** Homesteads: the long-term money sink. */
+  property: {
+    /** Days of unpaid tax before produce stops accruing. */
+    arrearsGraceDays: 7,
+  },
 };

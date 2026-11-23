@@ -28,7 +28,7 @@ const ACTIONS: Btn[] = [
   { label: 'Assobio', code: 'KeyH', icon: 'whistle' },
   { label: 'Arma', code: 'KeyG', icon: 'gun' },
   { label: 'Atirar', code: 'Mouse0', cls: 'fire', hold: true, icon: 'sight' },
-  { label: 'Recarregar', code: 'KeyR', cls: 'sw rl' },
+  { label: 'Recarregar', code: 'KeyR', cls: 'sw rl', icon: 'reload' },
   { label: '◀', code: 'KeyZ', cls: 'sw' },
   { label: '▶', code: 'KeyX', cls: 'sw' },
 ];
@@ -40,8 +40,8 @@ const MENUS: Btn[] = [
   { label: 'Cavalo', code: 'KeyB', icon: 'shoe', cap: true },
   { label: 'Diário', code: 'KeyJ', icon: 'book', cap: true },
   { label: 'Acampar', code: 'KeyK', icon: 'tent', cap: true },
-  { label: 'Lampião', code: 'KeyL' },
-  { label: 'Agachar', code: 'KeyV' },
+  { label: 'Lampião', code: 'KeyL', icon: 'lamp', cap: true },
+  { label: 'Agachar', code: 'KeyV', icon: 'crouch', cap: true },
 ];
 
 export class TouchControls {
@@ -58,7 +58,7 @@ export class TouchControls {
     this.game = game;
     this.root = document.createElement('div');
     this.root.className = 'touch';
-    this.root.innerHTML = `<div class="tzone"></div><div class="tstick"><div class="tknob"></div></div><div class="tbtns"></div><div class="tmenus"></div><div class="touch-tip">Vire o celular na horizontal para jogar melhor.<br>Esquerda: arraste para andar · Direita: ações</div>`;
+    this.root.innerHTML = `<div class="tzone"></div><div class="tstick"><div class="tknob"></div></div><div class="tbtns"></div><div class="tmenus"></div>`;
     layer.appendChild(this.root);
     this.stick = this.root.querySelector('.tstick')!;
     this.knob = this.root.querySelector('.tknob')!;
