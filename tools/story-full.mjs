@@ -245,5 +245,11 @@ const flags = await page.evaluate(() => Object.keys(window.game.flags).filter((k
 log.push('ending flags: ' + flags.join(','));
 log.push(...[...new Set(errors)].map((e) => 'ERROR ' + e));
 console.log(log.join('\n'));
+// WF_DUMP_SAVE=path: save the finished game to slot 1 and write localStorage out, for post-story playtests.
+if (process.env.WF_DUMP_SAVE) {
+  const dump = await page.evaluate(() => { window.game.save('1', false); const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); o[k] = localStorage.getItem(k); } return o; });
+  (await import('node:fs')).writeFileSync(process.env.WF_DUMP_SAVE, JSON.stringify(dump));
+  console.log('save dumped to ' + process.env.WF_DUMP_SAVE);
+}
 await browser.close();
 srv.close();

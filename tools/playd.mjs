@@ -19,6 +19,11 @@ const files = createServer((req, res) => {
 const browser = await chromium.launch();
 const ctx = await browser.newContext(mobile ? { ...devices['iPhone 13 landscape'] } : { viewport: { width: 1280, height: 720 } });
 const page = await ctx.newPage();
+// WF_SAVE=path: preload a localStorage dump (e.g. a finished story) so testers can "Continue" from it.
+if (process.env.WF_SAVE) {
+  const dump = JSON.parse((await import('node:fs')).readFileSync(process.env.WF_SAVE, 'utf8'));
+  await page.addInitScript((d) => { if (!sessionStorage.getItem('wf_seeded')) { for (const [k, v] of Object.entries(d)) localStorage.setItem(k, v); sessionStorage.setItem('wf_seeded', '1'); } }, dump);
+}
 const cdp = mobile ? await ctx.newCDPSession(page) : null;
 const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
 const errors = [];
