@@ -570,11 +570,12 @@ function paintSide(c: Ctx, L: Look, P: Proportions, pose: Pose): { sx: number; s
   // Soft, darker muzzle; broad on the drafts, small on the dished breeds.
   const muzK = dish ? 0.78 : 1 + rom * 0.12;
   const [mzx, mzy] = H(0.93, -0.01);
-  ellipse(c, mzx, mzy, hw * 0.26 * muzK, hw * 0.24 * muzK, shade(mid, -0.18));
+  ellipse(c, mzx, mzy, hw * 0.26 * muzK, hw * 0.24 * muzK, L.points ? mix(mid, L.points, 0.4) : shade(mid, -0.18));
   // Ears: pricked forward when moving, pinned when rearing/bucking, relaxed sideways when dozing.
   const earBase = H(-0.02, 0.42);
   const earPin = pose.rear || pose.buck ? 0.8 : pose.lie ? 0.5 : 0;
-  poly(c, [earBase, [earBase[0] - 1.8 - earPin * 2, earBase[1] - 2.6 + earPin * 1.5], [earBase[0] + 0.8, earBase[1] - 0.2]], dark);
+  // Black-pointed coats (bay, buckskin, dun) carry the black onto the ear rims and muzzle.
+  poly(c, [earBase, [earBase[0] - 1.8 - earPin * 2, earBase[1] - 2.6 + earPin * 1.5], [earBase[0] + 0.8, earBase[1] - 0.2]], L.points ?? dark);
   if (L.rim) px(c, earBase[0] - 1.2 - earPin * 2, earBase[1] - 1.8 + earPin * 1.5, L.rim);
 
   // Face markings run down the front of the face.
@@ -1016,7 +1017,7 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     // barrel, should own the silhouette.
     const croupTop = chestY - depth * 0.86; // far end of the back
     const midY = (chestY + croupTop) / 2;
-    const seatY = croupTop + depth * 0.44;
+    const seatY = croupTop + (chestY - croupTop) * 0.46;
     // Tail tip flicks out above the croup.
     const sw = Math.sin(t * tau) * (moving ? 2 : 1.2);
     line(c, cx + bw * 0.15 + sw * 0.4, croupTop + 2, cx + bw * 0.35 + sw * 1.4, croupTop - 1.5 - (run ? 2 : 0), L.mane[0], (sh.sparse ? 1.5 : 2.4) * s);
@@ -1083,6 +1084,7 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
       poly(c, [[ex0 - side * 0.6, poll + 1.4], [tipX + side * 0.9, earTip - 1.2], [ex1 + side * 1.2, poll + 1.4]], sep);
       poly(c, [[ex0 + side * 0.4, poll + 1], [tipX, earTip + 0.4], [ex1, poll + 1]], side < 0 ? light : mid);
       px(c, tipX - side * 0.2, poll - 0.6, side < 0 ? dark : deep);
+      if (L.points) px(c, tipX, earTip + 0.8, L.points);
     }
     const dish = (sh.profile ?? 0) < 0 ? 0.82 : 1 + (sh.profile ?? 0) * 0.12;
     const face = (g: number): [number, number][] => [
@@ -1108,7 +1110,7 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     px(c, cx - hw * 0.55, poll + 1, hi);
     px(c, cx - hw * 0.2, poll + hl * 0.45, hi);
     poly(c, [[cx + hw * 0.98, poll + hl * 0.3], [cx + hw * 0.56 * dish, poll + hl * 0.68], [cx + hw * 0.3, poll + hl * 0.6], [cx + hw * 0.7, poll + hl * 0.2]], dark);
-    ellipse(c, cx, poll + hl * 0.88, hw * 0.66 * dish, hw * 0.5, shade(mid, -0.2));
+    ellipse(c, cx, poll + hl * 0.88, hw * 0.66 * dish, hw * 0.5, L.points ? mix(mid, L.points, 0.4) : shade(mid, -0.2));
     px(c, cx - hw * 0.42, poll + hl * 0.9, deep);
     px(c, cx + hw * 0.42, poll + hl * 0.9, deep);
     if (sh.mottle) px(c, cx, poll + hl * 0.98, '#c9a49a');
@@ -1306,7 +1308,7 @@ function applySimplePattern(c: Ctx, L: Look, cx: number, cy: number, bw: number,
 
 function paletteFor(L: Look): string[] {
   const pal = [shade(L.body[0], -0.28), L.hi, shade(L.body[1], -0.1), shade(L.body[1], -0.2), shade(L.body[1], -0.18), shade(L.body[1], 0.12), shade(L.body[1], -0.25), shade(L.mane[1], 0.18), shade(L.hoof, -0.25), '#b5a68a', shade('#b5a68a', -0.25), ...L.body, ...L.mane, L.white, L.hoof, L.eye, shade(L.body[0], -0.5), '#d8d4cc', shade(L.body[1], -0.08)];
-  if (L.points) pal.push(L.points, shade(L.points, -0.2));
+  if (L.points) pal.push(L.points, shade(L.points, -0.2), mix(L.body[1], L.points, 0.4));
   if (L.rim) pal.push(L.rim);
   else pal.push(shade(L.body[0], -0.62));
   if (L.spot) pal.push(L.spot, shade(L.spot, -0.15));
