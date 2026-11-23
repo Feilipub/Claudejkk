@@ -30,3 +30,17 @@ export const SURNAMES = [
   'Underhill', 'Vance', 'Whitlock', 'Yardley', 'Abernathy', 'Beckett', 'Crowe', 'Delacroix', 'Esparza', 'Fontaine',
   'Garza', 'Huang', 'Lindqvist', 'Moreno', 'Okafor', 'Petrov', 'Reyes', 'Schulz', "O'Dell", 'McCready',
 ];
+
+/** Name pools for the border pueblos (Las Golondrinas): Spanish-colonial and Mexican given names and family names. */
+export const HISPANIC_NAMES_M = [
+  'Mateo', 'Ignacio', 'Tomás', 'Joaquín', 'Esteban', 'Rafael', 'Alonso', 'Diego', 'Emilio', 'Felipe', 'Guillermo', 'Julián',
+  'Lorenzo', 'Marcos', 'Nicolás', 'Ramón', 'Santiago', 'Teodoro', 'Vicente', 'Andrés', 'Cipriano', 'Epifanio', 'Fermín', 'Lázaro',
+];
+export const HISPANIC_NAMES_F = [
+  'Inés', 'Lucía', 'Pilar', 'Rosa', 'Carmen', 'Dolores', 'Elena', 'Josefa', 'Guadalupe', 'Isabel', 'Juana', 'Leonor',
+  'Marisol', 'Paloma', 'Remedios', 'Soledad', 'Teresa', 'Ana', 'Beatriz', 'Catalina', 'Refugio', 'Concepción', 'Altagracia', 'Eulalia',
+];
+export const HISPANIC_SURNAMES = [
+  'Esparza', 'Garza', 'Moreno', 'Reyes', 'Archuleta', 'Baca', 'Chávez', 'Delgado', 'Gallegos', 'Herrera', 'Lucero', 'Montoya',
+  'Ortiz', 'Padilla', 'Quintana', 'Romero', 'Salazar', 'Trujillo', 'Vigil', 'Zamora', 'Medina', 'Sandoval', 'Valdez', 'Luna',
+];

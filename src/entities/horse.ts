@@ -825,7 +825,6 @@ export class HorseEntity extends Entity {
       const f = hs.frames[dir].ride[0]!;
       const seatX = flip ? HW - frame.sx : frame.sx;
       r.sprite(f, Math.round(dx + seatX - (view === 'side' ? (flip ? PW - 9 : 9) : 10)), Math.round(dy + frame.sy - 17), flip);
-      r.rect(dx + seatX - 1, dy + frame.sy, 2, 6, this.npcRiderLook.pants);
     }
   }
 }

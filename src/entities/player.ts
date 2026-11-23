@@ -396,21 +396,8 @@ export class Player extends Entity {
     const seatX = flip ? HW - frame.sx : frame.sx;
     const rx = hx + seatX - (view === 'side' ? (flip ? PW - 9 : 9) : 10);
     const ry = hy + frame.sy - 17;
-    // Leg hanging over the horse's side.
-    const pants = this.look.pants;
-    const boots = this.look.boots;
-    if (view === 'side') {
-      const lx = hx + seatX + (flip ? 0 : -1);
-      r.rect(lx, hy + frame.sy, 2, 6, pants);
-      r.rect(lx - (flip ? 1 : 0), hy + frame.sy + 6, 3, 2, boots);
-    }
+    // The ride sprite itself now carries the legs and stirrup (hand-pixelled), so nothing extra is drawn.
     r.sprite(f, Math.round(rx), Math.round(ry), aimDir ? aimDir.flip : flip, 1);
-    if (view !== 'side') {
-      r.rect(hx + seatX - 7, hy + frame.sy, 2, 6, pants);
-      r.rect(hx + seatX + 5, hy + frame.sy, 2, 6, pants);
-      r.rect(hx + seatX - 7, hy + frame.sy + 6, 2, 2, boots);
-      r.rect(hx + seatX + 5, hy + frame.sy + 6, 2, 2, boots);
-    }
     if (this.aiming) r.aimLine(this, game);
     void h;
   }

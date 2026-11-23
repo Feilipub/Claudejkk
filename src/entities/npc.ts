@@ -12,7 +12,7 @@
 import { Rng, hashString } from '../core/rng.ts';
 import { approach, clamp, facing4 } from '../core/math.ts';
 import { getItem } from '../data/items.ts';
-import { ACTS, blockAt, SOCIAL_TUNING, type ActKind, type PropKind, type SchedBlock } from '../data/social.ts';
+import { ACTS, blockAt, SOCIAL_TUNING, SPOT_ACT, WORK_ACTS, WORK_SPOTS, type ActKind, type PropKind, type SchedBlock } from '../data/social.ts';
 import type { NpcDef } from '../data/schema.ts';
 import type { Game } from '../game.ts';
 import { humanSprites, PH, PW, type HumanAnim, type HumanLook, type Dir } from '../render/humanSprite.ts';
@@ -309,6 +309,16 @@ export class Npc extends Entity {
     };
     const bedSpot = () => pick(of('bed', 'home'), 'bed');
     let r: { x: number; y: number } | null = null;
+    // Trades with a named outdoor workplace in this settlement (mine, stockyard, field, pier…) go there.
+    const prefs = WORK_SPOTS[this.occupation];
+    if (prefs?.length && WORK_ACTS.has(block.act) && (block.place === 'work' || block.place === 'field' || block.place === 'corral')) {
+      for (const name of prefs) {
+        const named = spots.filter((s) => s.kind === 'work' && s.id.split(':')[1] === name);
+        if (!named.length) continue;
+        this.act = SPOT_ACT[name] ?? block.act;
+        return px(pick(named, 'ws' + idx), !named[0]!.buildingId);
+      }
+    }
     switch (block.place) {
       case 'bed':
         r = px(bedSpot());

@@ -51,7 +51,10 @@ src/
   world/               tile vocabulary, World container + queries, worldgen, settlements, A* paths
   entities/            Entity + SpatialHash, Player, HorseEntity (AI + riding), Npc, Animal
   systems/             quests, dialogue, script (conditions/effects), law, reputation, combat,
-                       economy, interactions, camp, activities, taming, horsethief, spawner, skills, save, time, weather
+                       economy (regional trade, property), jobs (notice boards, 19 job templates),
+                       interactions, camp, activities, taming, horsethief, spawner, social (NPC life),
+                       skills, save, time, weather
+  data/jobs.ts         job templates, notice boards, trade goods, homestead plots and improvements
   render/              pixmap (hand-drawn pixel grids + master palette), terrain chunk cache,
                        renderer (lighting/weather/particles), sprite builders: horse, human, portrait,
                        animal, prop, building (+ *Pixel.ts drawing files)
@@ -132,6 +135,11 @@ system combines event-driven and polled objectives with branching `next` and `fa
 - **What's saved:** the player (position, look, stats, inventory, weapons, skills), every owned horse (full HorseData, including bond, health, injuries, gear and history),
   clock, weather, flags, reputation, wanted state, quests, NPC memory (opinion, dead/left), discoveries,
   lore, explored fog, the economy (stock, market saturation, trader horses) and spare tack.
+
+### 7.1 Added by the open-world expansion
+Jobs (active job, board offers per day, standing per employer), property (plots, improvements, tax
+debt), per-region market saturation and trade-post stock are serialised with the game; old saves
+load with defaults. See `design/gdd/economy-jobs.md`.
 
 ## 8. Testing
 

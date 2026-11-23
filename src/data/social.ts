@@ -232,9 +232,10 @@ export const ROUTINES: Record<string, Routine> = {
       b(0, 5, 'bed', 'sleep'),
       b(5, 5.5, 'home', 'eat'),
       b(5.5, 9, 'corral', 'feed'),
-      b(9, 12, 'stall', 'brush'),
+      b(9, 12, 'field', 'tend'),
       b(12, 13, 'social', 'eat'),
-      b(13, 17.5, 'corral', 'feed'),
+      b(13, 15, 'stall', 'brush'),
+      b(15, 17.5, 'corral', 'feed'),
       b(17.5, 18.5, 'social', 'eat'),
       b(18.5, 22, 'saloon', 'drink'),
       b(22, 24, 'bed', 'sleep'),
@@ -477,6 +478,37 @@ export const ROUTINE_OF: Record<string, string> = {
   saloongirl: 'nightlife', gambler: 'gambler', pianist: 'pianist', preacher: 'preacher',
   drifter: 'drifter', traveler: 'traveler', child: 'child', elder: 'elder', outlaw: 'outlaw',
 };
+
+/**
+ * Named outdoor work spots (settlement layouts name them: `spot('work', x, y, _, 'mine')`)
+ * that each trade prefers, best first. NPCs fall back to generic spots when a place has none.
+ */
+export const WORK_SPOTS: Record<string, string[]> = {
+  miner: ['mine'],
+  logger: ['logs'],
+  farmer: ['field', 'orchard', 'flock'],
+  railroad: ['platform', 'stockyard'],
+  telegrapher: ['platform'],
+  surveyor: ['platform'],
+  cowhand: ['stockyard', 'pens', 'branding', 'pasture'],
+  rancher: ['branding', 'pasture', 'pens'],
+  stablehand: ['paddock', 'roundpen'],
+  breeder: ['roundpen', 'paddock', 'flock'],
+  horsetrader: ['roundpen', 'paddock'],
+  trapper: ['pier'],
+  hunter: ['pier'],
+  traveler: ['pier', 'platform'],
+  cook: [],
+};
+
+/** What a worker does at a named spot (overrides the routine's activity for work blocks). */
+export const SPOT_ACT: Record<string, ActKind> = {
+  mine: 'pick', logs: 'chop', field: 'hoe', orchard: 'tend', flock: 'feed', platform: 'loiter', stockyard: 'feed',
+  pens: 'feed', branding: 'tend', pasture: 'feed', roundpen: 'brush', paddock: 'feed', pier: 'tend',
+};
+
+/** Routine activities that count as work (eligible for SPOT_ACT overrides). */
+export const WORK_ACTS = new Set<ActKind>(['hammer', 'wipe', 'sweep', 'hoe', 'pick', 'chop', 'brush', 'feed', 'cook', 'tend', 'write', 'shop']);
 
 /** Day 1 is Tuesday 3 April 1888, so Sundays are days 6, 13, 20… */
 export function isSunday(day: number): boolean {

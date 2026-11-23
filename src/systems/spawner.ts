@@ -8,7 +8,7 @@
  *  - Authored encounters (hideouts, ambushes) spawn when approached.
  */
 import { Rng, hashString } from '../core/rng.ts';
-import { HORSE_NAMES, FIRST_NAMES_F, FIRST_NAMES_M, SURNAMES } from '../data/names.ts';
+import { HORSE_NAMES, FIRST_NAMES_F, FIRST_NAMES_M, HISPANIC_NAMES_F, HISPANIC_NAMES_M, HISPANIC_SURNAMES, SURNAMES } from '../data/names.ts';
 import type { EncounterDef, NpcDef, Occupation } from '../data/schema.ts';
 import { getSpecies } from '../data/wildlife.ts';
 import { REGIONS, ROADS, SETTLEMENTS, WORLD_H, WORLD_W } from '../data/world.ts';
@@ -19,9 +19,10 @@ import { Npc } from '../entities/npc.ts';
 import type { Game } from '../game.ts';
 import { generateHorse } from '../horse/generator.ts';
 import { evalCond } from './script.ts';
+import { wildlifeGroups, wildlifeQuota } from './spawnQuota.ts';
 import { F, G } from '../world/tiles.ts';
 
-const GENERIC_COUNT: Record<string, number> = { town: 9, city: 13, mining: 5, camp: 4, ranch: 3, fort: 5, lodge: 5, farm: 2, station: 1 };
+const GENERIC_COUNT: Record<string, number> = { town: 9, city: 13, mining: 5, camp: 4, ranch: 3, fort: 5, lodge: 5, farm: 2, station: 1, post: 3 };
 const GENERIC_OCC: Record<string, Occupation[]> = {
   town: ['cowhand', 'farmer', 'traveler', 'child', 'elder', 'drifter', 'railroad', 'saloongirl', 'gambler'],
   city: ['banker', 'railroad', 'traveler', 'child', 'saloongirl', 'gambler', 'drifter', 'merchant', 'railroad', 'cowhand', 'pianist'],
@@ -32,6 +33,7 @@ const GENERIC_OCC: Record<string, Occupation[]> = {
   lodge: ['breeder', 'elder', 'child', 'hunter', 'breeder'],
   farm: ['farmer', 'child'],
   station: ['railroad'],
+  post: ['trapper', 'traveler', 'hunter'],
 };
 
 export class Spawner {
@@ -63,8 +65,10 @@ export class Spawner {
       const occ = occs[i % occs.length]!;
       const female = occ === 'saloongirl' || rng.chance(0.38);
       const sayen = s.kind === 'lodge';
-      const first = female ? rng.pick(FIRST_NAMES_F) : rng.pick(FIRST_NAMES_M);
-      const rolled = sayen ? '' : rng.pick(SURNAMES); // same RNG draws as before, so existing townsfolk keep their names
+      // Border pueblos name their people from their own pools (same number of RNG draws either way).
+      const pueblo = s.layout === 'pueblo';
+      const first = female ? rng.pick(pueblo ? HISPANIC_NAMES_F : FIRST_NAMES_F) : rng.pick(pueblo ? HISPANIC_NAMES_M : FIRST_NAMES_M);
+      const rolled = sayen ? '' : rng.pick(pueblo ? HISPANIC_SURNAMES : SURNAMES); // same RNG draws as before, so existing townsfolk keep their names
       const surname = occ === 'child' && parent ? parent.name.split(' ').pop()! : rolled;
       out.push({
         id: `gen_${settlementId}_${i}`,
@@ -203,16 +207,18 @@ export class Spawner {
   private streamWildlife(): void {
     const g = this.game;
     const p = g.player;
-    let count = 0;
+    // The quota counts GROUPS, not heads: one herd of nine steers is one sighting, so it no
+    // longer starves the area of every other species. Heads are still capped for performance.
+    const near: Animal[] = [];
     for (const e of g.entities) {
       if (!(e instanceof Animal)) continue;
-      const d = Math.hypot(e.x - p.x, e.y - p.y);
-      if (d > 1100) e.dead = true;
-      else count++;
+      if (Math.hypot(e.x - p.x, e.y - p.y) > 1100) e.dead = true;
+      else if (e.alive) near.push(e);
     }
+    const { groups, heads, species } = wildlifeGroups(near);
     const region = REGIONS.find((r) => r.id === g.currentRegion)!;
-    const density = region.climate === 'arid' ? 5 : region.climate === 'alpine' ? 6 : 9;
-    if (count >= density) return;
+    const quota = wildlifeQuota(region.climate);
+    if (groups >= quota.groups || heads >= quota.heads) return;
     if (g.law.inTown(p.x, p.y)) return;
     const night = g.clock.isNight;
     const pool = region.wildlife.filter((w) => w.species !== 'wildHorse');
@@ -221,14 +227,18 @@ export class Spawner {
     const safe = nearTown || g.playtime < 3600;
     const pool2 = safe ? pool.filter((w) => getSpecies(w.species).archetype !== 'predator') : pool;
     if (!pool2.length) return;
-    const pick = this.rng.weighted(pool2, (w) => w.weight * (getSpecies(w.species).nocturnal ? (night ? 2 : 0.5) : night ? 0.6 : 1));
+    // Variety: prefer a species that isn't already around.
+    const fresh = pool2.filter((w) => !species.has(w.species));
+    const pick = this.rng.weighted(fresh.length ? fresh : pool2, (w) => w.weight * (getSpecies(w.species).nocturnal ? (night ? 2 : 0.5) : night ? 0.6 : 1));
     const sp = getSpecies(pick.species);
     const pos = this.findSpawnPoint(380, 650);
     if (!pos) return;
     const n = sp.herd ? this.rng.int(sp.herd[0], sp.herd[1]) : 1;
+    const gid = `wg_${this.herdSeq++}`;
     for (let i = 0; i < n; i++) {
       const a = new Animal(sp.id, pos.x + this.rng.range(-30, 30), pos.y + this.rng.range(-30, 30), this.rng.int(1, 1e9));
       if (g.world.blockedPx(a.x, a.y)) continue;
+      a.herd = gid;
       g.addEntity(a);
     }
   }
