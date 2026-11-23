@@ -89,14 +89,27 @@ export class Renderer {
     for (let i = 0; i < 400; i++) this.rain.push({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.8 });
   }
 
+  /** Physical device pixels per CSS pixel (capped: beyond 3 the extra sharpness is invisible and costs fill rate). */
+  dpr = 1;
+  /** Integer number of PHYSICAL pixels per virtual pixel, so pixel art stays crisp on every phone. */
+  physScale = 3;
+  /** Player camera preference: -1 = far, 0 = auto, +1 = close (one scale step). */
+  zoomStep = 0;
+
   resize(): void {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    this.scale = Math.max(2, Math.round(h / 270));
-    this.vw = Math.ceil(w / this.scale);
-    this.vh = Math.ceil(h / this.scale);
-    this.canvas.width = w;
-    this.canvas.height = h;
+    this.dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    // Base scale in CSS px keeps roughly 270 virtual px of height on desktop and 2 on a phone held sideways.
+    // "Far" may go to 1.5 CSS px per virtual px (still a whole number of device pixels on phones); "Close" adds a step.
+    const normal = Math.max(2, Math.round(h / 270));
+    const cssScale = this.zoomStep > 0 ? normal + 1 : this.zoomStep < 0 ? Math.max(1.5, normal - 1) : normal;
+    this.physScale = Math.max(2, Math.round(cssScale * this.dpr));
+    this.scale = this.physScale / this.dpr;
+    this.canvas.width = Math.round(w * this.dpr);
+    this.canvas.height = Math.round(h * this.dpr);
+    this.vw = Math.ceil(this.canvas.width / this.physScale);
+    this.vh = Math.ceil(this.canvas.height / this.physScale);
     this.buf.width = this.vw;
     this.buf.height = this.vh;
     this.light.width = this.vw;
@@ -410,7 +423,7 @@ export class Renderer {
     // Present scaled to screen.
     const ctx = this.ctx;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.buf, 0, 0, this.vw * this.scale, this.vh * this.scale);
+    ctx.drawImage(this.buf, 0, 0, this.vw * this.physScale, this.vh * this.physScale);
     // Vignette & damage flash at full res.
     if (this.dmgFlash > 0) {
       ctx.fillStyle = `rgba(140,10,10,${this.dmgFlash * 0.35})`;

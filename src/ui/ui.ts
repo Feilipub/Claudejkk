@@ -55,7 +55,7 @@ export class UI {
   /** Highlighted dialogue option (keyboard arrows / gamepad). */
   private dlgSel = 0;
   private dlgShownAt = 0;
-  settings = { textScale: 1, showMinimap: true, music: 0.45, sfx: 0.9, ambience: 0.6, reducedMotion: false, colorblind: false };
+  settings = { textScale: 1, showMinimap: true, music: 0.45, sfx: 0.9, ambience: 0.6, reducedMotion: false, colorblind: false, cameraZoom: 0 };
 
   constructor(root: HTMLElement) {
     const style = document.createElement('style');
@@ -67,9 +67,13 @@ export class UI {
     this.hud = div(this.root, 'hud');
     this.hud.style.display = 'none';
     this.layer = div(this.root, '');
+    // Phones with a notch: keep every HUD element and touch control inside the safe area.
+    this.root.style.inset = 'env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)';
     this.notes = div(this.hud, 'notes');
     this.bannerEl = div(this.hud, 'banner');
     this.promptEl = div(this.hud, 'prompt');
+    // Long prompts (a horse has up to 7 actions) scroll with a finger instead of running under the touch bar.
+    Object.assign(this.promptEl.style, { maxHeight: '46vh', overflowY: 'auto', touchAction: 'pan-y', overscrollBehavior: 'contain' });
     this.promptEl.style.display = 'none';
     this.bubbles = div(this.hud, '');
     this.meterEl = div(this.hud, 'meter');
@@ -320,7 +324,12 @@ export class UI {
     }
     this.promptEl.style.display = '';
     const html = `${t ? `<div class="pt">${esc(t.title)}</div>${t.subtitle ? `<div class="ps">${esc(t.subtitle)}</div>` : ''}` : ''}${lines.join('')}`;
-    if (this.promptEl.innerHTML !== html) this.promptEl.innerHTML = html;
+    if (this.promptEl.innerHTML !== html) {
+      this.promptEl.innerHTML = html;
+      // Keep the selected row in view when ◀ ▶ cycle through a long list.
+      const sel = this.promptEl.querySelector('.pa.sel') as HTMLElement | null;
+      sel?.scrollIntoView?.({ block: 'nearest' });
+    }
   }
 
   /** Pre-render the whole territory map once. */
@@ -624,6 +633,7 @@ export class UI {
       'settings',
       `<h2>Settings</h2>
       <div class="opt-row"><label>Text size</label><input type="range" min="0.8" max="1.5" step="0.05" value="${s.textScale}" id="ts"></div>
+      <div class="opt-row"><label>Camera</label><select id="cz"><option value="-1" ${s.cameraZoom === -1 ? 'selected' : ''}>Far (see more)</option><option value="0" ${s.cameraZoom === 0 ? 'selected' : ''}>Normal</option><option value="1" ${s.cameraZoom === 1 ? 'selected' : ''}>Close (bigger)</option></select></div>
       <div class="opt-row"><label>Music volume</label><input type="range" min="0" max="1" step="0.05" value="${s.music}" id="mv"></div>
       <div class="opt-row"><label>Effects volume</label><input type="range" min="0" max="1" step="0.05" value="${s.sfx}" id="sv"></div>
       <div class="opt-row"><label>Ambience volume</label><input type="range" min="0" max="1" step="0.05" value="${s.ambience}" id="av"></div>
@@ -640,6 +650,7 @@ export class UI {
       };
     };
     bind('ts', (v) => (s.textScale = +v));
+    bind('cz', (v) => (s.cameraZoom = +v));
     bind('mv', (v) => (s.music = +v));
     bind('sv', (v) => (s.sfx = +v));
     bind('av', (v) => (s.ambience = +v));
@@ -666,6 +677,10 @@ export class UI {
       this.game.audio.volume.amb = s.ambience;
       this.game.audio.applyVolumes();
       this.game.renderer.reducedMotion = s.reducedMotion;
+      if (this.game.renderer.zoomStep !== s.cameraZoom) {
+        this.game.renderer.zoomStep = s.cameraZoom;
+        this.game.renderer.resize();
+      }
     }
     try {
       localStorage.setItem('wf_settings', JSON.stringify(s));

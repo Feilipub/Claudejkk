@@ -54,6 +54,8 @@ The touch controls appear on their own on touch screens. Play with the phone hel
 - **Bottom bar:** ☰ pause, save and settings; Mapa; Itens; Cavalo; Diário; Acampar.
 - **Prompts:** tap any line of an interaction prompt to choose it. Menus and dialogue scroll with a finger.
 - **Map zoom:** the map has + and − buttons. Tap the map to set a waypoint.
+- **Camera:** Settings → Camera lets you choose Far (see more of the world), Normal or Close (bigger sprites). The game renders a whole number of device pixels per game pixel on every phone, so the art stays crisp.
+- **Portrait:** the game asks you to turn the phone sideways; on Android it also goes full screen on the first touch.
 
 ## First hour
 1. Talk to **Josiah Oakes** at the Larkspur Livery, the big red barn south of the main street. Lost? Ask anyone in town "I'm looking for…" and they mark him on your compass. He lends you Biscuit.

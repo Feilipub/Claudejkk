@@ -28,6 +28,33 @@ declare global {
   }
 }
 window.wf = { ready: false, started: false, frames: 0, errors: [] };
+
+// --- Phones: play sideways, full screen, no accidental page scroll --------------------------
+const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+if (coarse) {
+  const rotate = document.createElement('div');
+  rotate.id = 'rotate';
+  rotate.style.cssText = 'position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:#120d0a;color:#f0e2c4;font:18px Georgia,serif;text-align:center;padding:24px';
+  rotate.innerHTML = '<div style="font-size:64px;line-height:1">📱↻</div><div><b>Vire o celular na horizontal</b><br><span style="opacity:.75">Wild Frontier é jogado com a tela deitada.</span></div>';
+  app.appendChild(rotate);
+  const check = () => {
+    rotate.style.display = window.innerHeight > window.innerWidth ? 'flex' : 'none';
+  };
+  check();
+  window.addEventListener('resize', check);
+  window.addEventListener('orientationchange', () => setTimeout(check, 200));
+  // First touch: go full screen and ask for landscape (works where the browser allows it; harmless elsewhere).
+  const goFull = () => {
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+    const req = el.requestFullscreen?.bind(el) ?? el.webkitRequestFullscreen?.bind(el);
+    Promise.resolve(req?.({ navigationUI: 'hide' } as FullscreenOptions))
+      .catch(() => undefined)
+      .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape'))
+      .catch(() => undefined);
+  };
+  window.addEventListener('touchend', goFull, { once: true, passive: true });
+}
+
 window.addEventListener('error', (e) => window.wf!.errors.push(String(e.message)));
 
 function loading(text: string, p: number): void {
