@@ -214,6 +214,17 @@ export class Npc extends Entity {
   }
 
   private currentTarget(game: Game): { x: number; y: number } | null {
+    // Story greeters wait out front, on the street side of their workplace, until the player has met them.
+    const gf = this.def.greetUntilFlag;
+    if (gf && !game.flags[gf] && this.def.workAt) {
+      const b = game.buildingsOf(this.settlementId).find((x) => x.type === this.def.workAt);
+      if (b) {
+        this.activity = 'idle';
+        const tx = b.x + Math.floor(b.w / 2) + 2;
+        const free = game.world.findNear(tx, b.y - 2, 4, (x, y) => !game.world.blockedPx(x * 16 + 8, y * 16 + 10) && !game.world.insideBuilding(x * 16 + 8, y * 16 + 10));
+        if (free) return { x: free.x * 16 + 8, y: free.y * 16 + 10 };
+      }
+    }
     const { block, idx } = this.currentBlock(game);
     const spots = game.spotsFor(this.settlementId);
     if (!spots.length) return null;

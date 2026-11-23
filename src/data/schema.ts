@@ -178,6 +178,8 @@ export interface NpcDef {
   settlement: string;
   /** Building type in that settlement where they work (saloon, store, stable…). */
   workAt?: string;
+  /** Until this flag is set, the NPC waits on the street in front of their workplace (story NPCs the player must find first). */
+  greetUntilFlag?: string;
   look: Partial<HumanLook>;
   personality: string[];
   faction?: RepKey;

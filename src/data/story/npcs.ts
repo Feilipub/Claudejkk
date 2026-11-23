@@ -15,6 +15,7 @@ export const NPCS: NpcDef[] = [
     occupation: 'horsetrader',
     settlement: 'larkspur',
     workAt: 'stable',
+    greetUntilFlag: 'met_josiah',
     shop: 'stable_larkspur',
     dialogue: 'dlg_josiah',
     essential: true,

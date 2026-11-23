@@ -100,7 +100,9 @@ export class InteractionSystem {
     }
     this.focusEntity = bestE;
     const world = this.worldTarget();
-    if (best && world) best.actions.push(...world.actions.filter((a) => !best!.actions.some((b) => b.label === a.label)));
+    // Only your own horse shares a prompt with the trough or well next to it; a person or a trader's horse gets a prompt of their own.
+    const ownHorse = bestE instanceof HorseEntity && bestE.data.owner === 'player';
+    if (best && world && ownHorse) best.actions.push(...world.actions.filter((a) => !best!.actions.some((b) => b.label === a.label)));
     return best ?? world;
   }
 
@@ -111,7 +113,8 @@ export class InteractionSystem {
     if (h.data.stress > 30) acts.push({ label: 'Calm horse', run: () => this.care(h, calmHorse(h.data, g.clock.day)) });
     if (Math.abs(h.speed) < 5) acts.push({ label: 'Pat neck', run: () => this.care(h, petHorse(h.data, g.clock.day)) });
     const t = g.world.terrainAt(h.x, h.y);
-    if (t.water && !t.deep && h.data.thirst < 95) acts.push({ label: 'Let horse drink', run: () => this.care(h, waterHorse(h.data, g.clock.day)) });
+    const trough = this.nearObj(h.x, h.y, [O.Trough], 2);
+    if (((t.water && !t.deep) || trough) && h.data.thirst < 95) acts.push({ label: 'Let horse drink', run: () => this.care(h, waterHorse(h.data, g.clock.day)) });
     if (!acts.length) return null;
     return { title: h.data.name, subtitle: 'Riding', x: h.x, y: h.y - 30, actions: acts };
   }
@@ -197,7 +200,8 @@ export class InteractionSystem {
     if (p.inv.has('brush')) acts.push({ label: 'Brush', run: () => this.care(h, brushHorse(d, day)) });
     if (p.inv.has('hoofPick') && (d.hoof < 90 || d.injuries.some((i) => i.kind === 'stoneBruise'))) acts.push({ label: 'Clean hooves', run: () => this.care(h, cleanHooves(d, day)) });
     const meds = ['horseLiniment', 'horseOintment', 'bandage', 'horseReviver'].filter((m) => p.inv.has(m));
-    if ((d.injuries.length || d.health < 60) && meds.length) {
+    // Offer treatment only while something is still untreated (or the horse is badly hurt).
+    if ((d.injuries.some((i) => !i.treated) || d.health < 60) && meds.length) {
       const leg = d.injuries.some((i) => i.kind === 'limp' || i.kind === 'strain' || i.kind === 'stoneBruise');
       const med = (leg && meds.includes('horseLiniment') ? 'horseLiniment' : meds.find((m) => m !== 'horseReviver')) ?? meds[0]!;
       acts.push({
@@ -246,6 +250,10 @@ export class InteractionSystem {
       acts.push({ label: 'Rob', run: () => { const m = 2 + n.rng.range(0, 12); g.player.money += m; g.law.reportCrime('robbery', n.x, n.y, n.id); g.notify(`You take ${m.toFixed(2)} dollars.`, 'bad'); n.setState('flee'); } });
       if (g.dialogue.treeFor(n)) acts.unshift({ label: 'Talk', run: () => g.dialogue.start(n) });
       return { title: n.name, subtitle: 'Surrendered', x: n.x, y: n.y - 30, actions: acts };
+    }
+    // A lawman coming for you: you can give yourself up instead of waiting to be shot.
+    if ((n.occupation === 'sheriff' || n.occupation === 'deputy') && (n.state === 'pursue' || n.state === 'combat') && g.law.isWanted(g.currentRegion)) {
+      return { title: n.name, subtitle: 'Lawman', x: n.x, y: n.y - 30, actions: [{ label: 'Surrender', run: () => { g.player.holstered = true; n.hostile = false; g.law.arrest(n); } }] };
     }
     if (n.hostile) return { title: n.name, subtitle: 'Hostile', x: n.x, y: n.y - 30, actions: [] };
     acts.push({ label: 'Talk', run: () => g.dialogue.start(n) });
@@ -335,7 +343,10 @@ export class InteractionSystem {
     const water = this.nearWater(p.x, p.y, 1);
     const well = this.nearObj(p.x, p.y, [O.Well, O.Trough, O.WaterTower], 1);
     if (water || well) {
-      title = water ? 'Water' : 'Well';
+      title = water ? 'Water' : OBJ[W.objAt(well!.x, well!.y)]?.name ?? 'Well';
+      // Your horse standing by: water it from here too (the horse's own prompt is often off-screen on a phone).
+      const mh = g.horses.size ? [...g.horses.values()].find((h) => h.data.owner === 'player' && !h.rider && h.data.thirst < 95 && Math.hypot(h.x - p.x, h.y - p.y) < 70) : undefined;
+      if (mh) acts.push({ label: `Water ${mh.data.name}`, run: () => this.care(mh, waterHorse(mh.data, g.clock.day)) });
       acts.push({ label: 'Drink', run: () => { p.stats.thirst = 100; p.act(1); g.audio.play('drink'); g.notify('You drink your fill.', 'info'); } });
       acts.push({ label: 'Fill canteen', enabled: p.inv.canAdd('canteenWater'), hint: 'No room.', run: () => { const n = p.inv.add('canteenWater', 3); g.notify(n ? `Filled canteen (${n}).` : 'Canteen is full.', 'info'); } });
       if (water && p.inv.has('fishingRod')) acts.push({ label: 'Fish', run: () => g.activities.start('fishing') });

@@ -1,3 +1,4 @@
+import { freeSpotNear } from './horse.ts';
 /**
  * The player character: on-foot movement, mounting/dismounting, riding hand-off
  * to the horse controller, survival stats, weapons and combat, death/respawn.
@@ -32,7 +33,8 @@ export class Player extends Entity {
   stats: PlayerStats = { health: 100, maxHealth: 100, stamina: 100, maxStamina: 100, hunger: 85, thirst: 85, energy: 90, warmthBuff: 0 };
   inv = new Inventory(BALANCE.player.carryBase);
   skills = new Skills();
-  money = 18.5;
+  /** Starting purse: enough for a cheap rifle and a bedroll, not much more (playtest: $18.50 forced a choice between hunting and camping). */
+  money = 26.5;
   mount: HorseEntity | null = null;
   /** Main horse id (whistle target). */
   mainHorseId: string | null = null;
@@ -118,7 +120,8 @@ export class Player extends Entity {
     }
     if (this.weapon && !game.flags.hintFire) {
       game.setFlag('hintFire', true);
-      game.notify('Weapon drawn. Left-click fires; hold right-click to steady your aim. G holsters.', 'info');
+      const touch = typeof document !== 'undefined' && document.body.classList.contains('has-touch');
+      game.notify(touch ? 'Weapon drawn. Tap Atirar, or tap the spot you want to hit. Arma holsters, Recarregar reloads.' : 'Weapon drawn. Left-click fires; hold right-click to steady your aim. G holsters.', 'info');
     }
     this.aiming = inp.down('aim') && !!this.weapon;
     const aimWorld = game.mouseWorld();
@@ -206,8 +209,19 @@ export class Player extends Entity {
         this.x = x0 + dx;
         this.y = y0 + dy;
       }
-    }
+      // Still pinned after a moment of trying: hop to the nearest clear spot.
+      this.pinnedT += game.dt;
+      if (this.pinnedT > 1) {
+        this.pinnedT = 0;
+        const spot = freeSpotNear(game, x0, y0, (x, y) => !blocked(x, y));
+        if (spot) {
+          this.x = spot.x;
+          this.y = spot.y;
+        }
+      }
+    } else this.pinnedT = 0;
   }
+  private pinnedT = 0;
 
   private survival(dt: number, game: Game): void {
     const gm = game.lastGameMinutes;

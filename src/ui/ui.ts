@@ -313,7 +313,7 @@ export class UI {
     }
     const mountable = !p.mount && g.nearestRideableHorse(p.x, p.y, 28);
     if (mountable && !this.modalOpen) lines.push(`<div class="pa"><span class="key">F</span>Mount ${esc(mountable.data.name)}</div>`);
-    if (p.mount && !this.modalOpen) lines.push(`<div class="pa"><span class="key">F</span>Dismount &nbsp;<span class="key">Shift</span>Faster <span class="key">Ctrl</span>Slower <span class="key">Space</span>Jump</div>`);
+    if (p.mount && !this.modalOpen) lines.push(`<div class="pa kbd-only"><span class="key">F</span>Dismount &nbsp;<span class="key">Shift</span>Faster <span class="key">Ctrl</span>Slower <span class="key">Space</span>Jump</div>`);
     if (!lines.length) {
       this.promptEl.style.display = 'none';
       return;
@@ -569,7 +569,7 @@ export class UI {
       'pause',
       `<h2>Paused</h2><div class="sub">${esc(this.game.clock.dateString())} · ${Math.floor(this.game.playtime / 60)} min played</div>
       <div style="text-align:center" id="pb"></div>
-      <h3>Controls</h3><div class="help">
+      <h3>Controls</h3>${document.body.classList.contains('has-touch') ? `<div class="help">Left thumb — drag to move / steer<br>E — talk, interact (or tap a prompt line)<br>Montar — mount / dismount<br>Correr — run / spur up a gait<br>Frear — slow / calm a bolting horse<br>Pular — jump (trot or faster)<br>Assobio — whistle for your horse<br>Arma — draw / holster<br>Atirar — fire where you face (or tap a spot)<br>Recarregar — reload<br>◀ ▶ — cycle prompt options<br>Bottom bar — menu, map, items, horse, journal, camp</div><h3>Keyboard</h3>` : ''}<div class="help">
       WASD — move / steer horse<br>Shift — run / spur up a gait<br>Ctrl / C — slow down<br>Q — rein back (mounted)<br>Space — jump (canter+)<br>F — mount / dismount<br>H — whistle for your horse<br>E / 1–6 — interact<br>
       G — draw / holster<br>Z / X / wheel — switch weapon<br>RMB — aim · LMB — fire<br>R — reload<br>V — crouch (stalk)<br>L — lantern<br>K — make camp<br>I / Tab — inventory<br>B — horse · M — map<br>J — journal · O — character<br>F5 — quick save</div>`,
       620,
@@ -713,7 +713,8 @@ export class UI {
         r.innerHTML = `<div><div class="nm">${esc(it.name)}${p.weapon === w ? ' <span class="chip">equipped</span>' : ''}</div><div class="ds">${esc(it.description)}</div></div>`;
         button(r, 'Equip', 'btn small').onclick = () => {
           p.weaponIdx = p.weapons.indexOf(w);
-          p.holstered = false;
+          // Selected, not drawn: walking out of a shop with an iron in hand gets the law's attention.
+          p.holstered = true;
           render();
         };
       }
@@ -735,7 +736,14 @@ export class UI {
             h.data.bagItems[id] = (h.data.bagItems[id] ?? 0) + 1;
             render();
           };
-          if (it.category !== 'quest' && it.category !== 'document') button(r, 'Drop', 'btn small red').onclick = () => { p.inv.remove(id); render(); };
+          if (it.category !== 'quest' && it.category !== 'document') {
+            // Two taps to drop: Drop sits right beside Use, and a thumb slips.
+            const db = button(r, 'Drop', 'btn small red');
+            db.onclick = () => {
+              if (db.dataset.armed) { p.inv.remove(id); render(); }
+              else { db.dataset.armed = '1'; db.textContent = 'Drop?'; setTimeout(() => { if (db.isConnected) { delete db.dataset.armed; db.textContent = 'Drop'; } }, 2500); }
+            };
+          }
         }
       }
       const hinv = panel.querySelector('#hinv') as HTMLElement;
@@ -1143,9 +1151,10 @@ export class UI {
   // --- Map ---------------------------------------------------------------------------------------
   openMap(): void {
     const g = this.game;
-    const panel = this.modal('map', `<h2>Calder Territory</h2><div class="sub">Click a location to set a waypoint · Your horse ♞ · Objective ◆</div><div class="mapwrap" style="display:flex;justify-content:center"><canvas id="mapc"></canvas></div><div class="mapzoom" style="display:flex;gap:8px;justify-content:center;margin:6px 0"><button class="btn small" data-z="-1">−</button><button class="btn small" data-z="1">+</button></div><div id="legend" class="small-note"></div>`, 1000);
+    const panel = this.modal('map', `<h2>Calder Territory</h2><div class="sub">Click or tap a location to set a waypoint · Your horse ♞ · Objective ◆</div><div class="mapwrap" style="display:flex;justify-content:center"><canvas id="mapc"></canvas></div><div class="mapzoom" style="display:flex;gap:8px;justify-content:center;margin:6px 0"><button class="btn small" data-z="-1">−</button><button class="btn small" data-z="1">+</button></div><div id="legend" class="small-note"></div>`, 1000);
     const cv = panel.querySelector('#mapc') as HTMLCanvasElement;
-    const size = Math.max(360, Math.min(900, window.innerHeight - 190));
+    // Fits a phone held sideways as well as a desktop window.
+    const size = Math.max(220, Math.min(900, window.innerHeight - 170, window.innerWidth - 80));
     cv.width = size;
     cv.height = size;
     cv.style.width = cv.style.height = `${size}px`;

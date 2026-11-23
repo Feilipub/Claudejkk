@@ -66,11 +66,15 @@ export class CombatSystem {
     const ox = p.x;
     const oy = p.y - (p.mount ? 22 : 11);
     const base = Math.atan2(ty - oy, tx - ox);
+    let struck: Entity | null = null;
     for (let i = 0; i < (w.pellets ?? 1); i++) {
       const a = base + (this.rng.next() - 0.5) * 2 * Math.max(0.005, spread);
-      this.hitscan(ox, oy, a, w.range, w.damage, p, w.kind === 'bow');
+      struck = this.hitscan(ox, oy, a, w.range, w.damage, p, w.kind === 'bow') ?? struck;
     }
-    g.renderer.spawn({ x: ox + Math.cos(base) * 8, y: oy + Math.sin(base) * 8, kind: 'muzzle', color: '#ffe0a0', life: 0.06, max: 0.06, size: 3 });
+    // Readable feedback even with the sound off (phones on silent): a word over what you hit, or where the shot went.
+    if (struck) g.renderer.spawn({ x: struck.x, y: struck.y - 18, kind: 'text', text: 'Hit', color: '#ffd27a', vx: 0, vy: -14, life: 0.8, max: 0.8, size: 1 });
+    else if (Math.hypot(tx - ox, ty - oy) < w.range) g.renderer.spawn({ x: tx, y: ty - 6, kind: 'text', text: 'Miss', color: '#d8d0c0', vx: 0, vy: -10, life: 0.6, max: 0.6, size: 1 });
+    g.renderer.spawn({ x: ox + Math.cos(base) * 8, y: oy + Math.sin(base) * 8, kind: 'muzzle', color: '#ffe0a0', life: 0.1, max: 0.1, size: 4 });
     g.renderer.spawn({ x: ox + Math.cos(base) * 9, y: oy + Math.sin(base) * 9, kind: 'smoke', color: '#d8d4cc', vx: Math.cos(base) * 10, vy: -6, life: 0.9, max: 0.9, size: 2 });
     g.renderer.shake(w.kind === 'rifle' || w.kind === 'shotgun' ? 2 : 1);
     if (w.kind !== 'bow') {

@@ -115,3 +115,42 @@ Four AI playtesters played with keyboard, mouse and screenshots only (`tools/pla
 
 ## Art pass by 5 specialists (2026-11-23)
 Five specialists, each owning one area: horses, characters and portraits, terrain and props, buildings, lighting/wildlife/UI. Before and after images are in `production/qa/evidence/art/*/`. All art is still original and generated in code. The specialists' Stardew Valley and RDR2 taste was used as a quality bar for principles, not as a source to copy.
+
+## Mobile playtest + art round 2 (2026-11-23)
+- **Art round 2:** five specialists studied reference images (only Wikimedia Commons was reachable; the game wikis were blocked by the network). Evidence is in `production/qa/evidence/art2/`.
+  - **Horses:** readable black coats, Roman and dished profiles, knee flex, realistic coat patterns, tack in all three views.
+  - **Characters:** eyes that read on dark skin with dark hair, worn clothing, a redrawn cowboy hat.
+  - **Terrain:** calmer ground, landscape-scale colour patches, litter under props, a new aspen grove, about 20% faster painting.
+  - **Buildings:** weathered corrugated tin roofs, rear lean-tos, clerestories, a sign font, dark barns at night.
+  - **Light and UI:** directional golden hour, night glow, storm vignette, a new rabbit, pixel icons on the HUD bars, wood-and-brass touch buttons.
+- **Mobile playtest (4 testers, touch only):** reports are in `production/qa/playtests/mobile-p*/report.md`. Fixes:
+  - **Josiah** waits on the street in front of the livery until you meet him (data: `greetUntilFlag`).
+  - **Touch prompt** sits in the free middle band above the menu bar. A tap that turns into a swipe no longer fires a prompt option.
+  - **Touch screens** hide keyboard hints, show touch-specific text and a touch controls list in the pause menu, and add Recarregar, Lampião and Agachar buttons.
+  - **Compact layout:** the map fits a landscape phone, the title screen fits short screens, and the compass and tracker are rearranged.
+  - **Law:**
+    - Lawmen only shoot to kill on a murder or a bounty of $150+.
+    - A pursuing lawman offers "Surrender", and the arrest dialog has "Resist arrest".
+    - Lawmen in town come for a wanted player.
+    - The witness message no longer suggests silencing the witness.
+  - **Interaction:**
+    - Prompts no longer mix a person or a trader's horse with a trough.
+    - Troughs offer "Water <horse>" and mounted "Let horse drink".
+    - The trough is named correctly.
+  - **Collision:** riders and walkers wedged for about 1 s are moved to the nearest clear spot.
+  - **Feedback and inventory:**
+    - Shots show "Hit" / "Miss" and a longer muzzle flash.
+    - Equipping a weapon no longer draws it.
+    - Drop needs two taps.
+    - The bandage option disappears once the injuries are treated.
+  - **Starting money** is $26.50 (rifle plus bedroll).
+  - **Fixes from earlier in this round:**
+    - Jumps: the horse lines up fences, refuses less often, and says when you're too slow.
+    - "I'm looking for…" works with any NPC.
+    - Barks follow the time of day and avoid repeats.
+    - Signposts use the right scale and name the town you're in.
+    - You wake at the doctor fed.
+    - The horse sheet shows Fed/Watered.
+    - Dismounting never puts you inside a building.
+    - The map zooms ×1 to ×4.
+    - Josiah's line now matches Biscuit (a gelding).

@@ -234,7 +234,7 @@ input.txt { font: 20px 'Fell', serif; padding: 5px 10px; border: 1px solid var(-
 /* --- Touch controls (phones/tablets) --- */
 html, body { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
 .touch { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-.touch .tzone { position: absolute; left: 0; bottom: 0; width: 50%; height: 62%; pointer-events: auto; }
+.touch .tzone { position: absolute; left: 0; bottom: 0; width: 42%; height: 62%; pointer-events: auto; }
 .touch .tstick { position: absolute; left: 90px; bottom: 90px; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; border: 3px solid #1c120b; background: radial-gradient(circle, rgba(58,38,22,0.35) 55%, rgba(58,38,22,0.6) 70%, rgba(28,18,11,0.65)); box-shadow: inset 0 0 0 2px rgba(201,162,76,0.75), inset 0 0 0 6px rgba(28,18,11,0.35), 0 3px 10px rgba(0,0,0,0.35); opacity: 0; transition: opacity .15s; pointer-events: none; }
 .touch .tstick::before { content: ''; position: absolute; inset: 9px; border-radius: 50%; border: 1px dashed rgba(240,207,122,0.45); }
 .touch .tstick.on { opacity: 1; }
@@ -264,21 +264,30 @@ html, body { touch-action: none; overscroll-behavior: none; -webkit-user-select:
 ${Object.entries(ICON).map(([k, v]) => `.ti-${k} { --ic: ${v}; }`).join('\n')}
 .touch-tip { display: none; }
 body.has-touch .pa { pointer-events: auto; cursor: pointer; padding: 3px 0; }
+body.has-touch .kbd-only { display: none !important; }
+.touch .tbtn.rl { font-size: 10px; }
+@media (max-height: 500px) {
+  .menu-bg h1, .menu-bg .logo { font-size: 44px !important; margin: 4px 0 !important; }
+  .menu-bg .menu-btn { padding: 6px 18px !important; margin: 3px !important; font-size: 18px !important; }
+  .menu-bg .tagline { font-size: 16px !important; }
+  .menu-bg .foot, .menu-bg small, .menu-bg .about-note { display: none; }
+}
 /* Menus and dialogue still scroll with a finger. */
 .modal, .modal .panel, .menu-bg, .dialogue { touch-action: pan-y; }
 .modal .panel { max-height: 94vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 /* Small touch screens: a compact HUD that leaves room for the thumbs. */
 @media (max-height: 560px), (max-width: 700px) {
   body.has-touch .hud-cores { zoom: 0.62; }
-  body.has-touch .hud-tr { zoom: 0.62; }
+  body.has-touch .hud-tr { zoom: 0.5; }
   body.has-touch .hud-tr .objective { max-width: 260px; }
   body.has-touch .hud-bl { zoom: 0.7; bottom: auto; top: 118px; }
   body.has-touch .hud-br { display: none; }
   body.has-touch .notes { zoom: 0.62; top: 210px; max-width: 520px; }
-  body.has-touch .compass { zoom: 0.75; }
+  body.has-touch .compass { zoom: 0.62; top: 4px; width: 320px; }
 
   /* Interaction prompt sits low-left of the rider, clear of the rider, the menu bar and the action cluster. */
-  body.has-touch .prompt { zoom: 0.8; top: auto; bottom: 70px; left: 30%; }
+  /* Prompt sits in the free middle band: right of the joystick zone, left of the buttons, above the menu bar. */
+  body.has-touch .prompt { zoom: 0.8; top: auto; bottom: 92px; left: 44%; transform: none; max-height: 62vh; overflow: hidden; z-index: 4; }
   body.has-touch .touch .tmenus { top: auto; bottom: 8px; left: 50%; zoom: 0.85; }
   body.has-touch .touch .tbtns { zoom: 0.82; }
   body.has-touch .dialogue { zoom: 0.72; }

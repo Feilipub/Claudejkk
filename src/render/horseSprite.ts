@@ -179,7 +179,7 @@ interface Gait {
 const GAITS: Record<string, Gait> = {
   idle: { land: [0, 0, 0, 0], duty: 1, stride: 0, lift: 0, frontLift: 1, bob: 0, bobN: 1, bobAt: 0, neck: 0, pitch: 0, pitchAt: 0, reach: 0, tail: 0, frames: 4 },
   // Lateral 4-beat: LH, LF, RH, RF; always two or three feet down; head nods twice.
-  walk: { land: [0.25, 0.75, 0, 0.5], duty: 0.64, stride: 3.6, lift: 1.9, frontLift: 1.1, bob: 0.45, bobN: 2, bobAt: 0.12, neck: 0.1, pitch: 0, pitchAt: 0, reach: 0, tail: 0, frames: 8, flex: 0.55 },
+  walk: { land: [0.25, 0.75, 0, 0.5], duty: 0.64, stride: 3.6, lift: 1.9, frontLift: 1.1, bob: 0.45, bobN: 2, bobAt: 0.12, neck: 0.1, pitch: 0, pitchAt: 0, reach: 0, tail: 0, frames: 8, flex: 0.45 },
   // Diagonal pairs (LF+RH, RF+LH) with a moment of suspension between beats.
   trot: { land: [0, 0.5, 0.5, 0], duty: 0.42, stride: 5.6, lift: 3.2, frontLift: 1.3, bob: 1.1, bobN: 2, bobAt: 0.2, neck: 0.04, pitch: 0, pitchAt: 0, reach: 0.4, tail: 2.5, frames: 8, flex: 1.0 },
   // Gaited breeds: smooth 4-beat running walk, big overstride, strong head nod, no bounce.
@@ -391,19 +391,25 @@ function paintSide(c: Ctx, L: Look, P: Proportions, pose: Pose): { sx: number; s
     }
     if (!kn) kn = knee(top[0], top[1], hx, hy - 1, legLen * 0.52, legLen * 0.56, front ? 1 : -1);
     if (moving && g.flex) {
-      // Fold the joints on top of the IK pose while the leg is in the air: the forearm swings
-      // forward and the cannon tucks back under it (knee), or the hock lifts and the cannon
-      // swings under the belly. Zero at lift-off and landing, so the stance stays planted.
+      // Fold the joints while the leg is in the air; zero at lift-off and landing, so the stance stays planted.
       const fl = footAt(g, li, pose.t).swing * g.flex;
       if (fl > 0) {
-        const rot = (vx: number, vy: number, a: number): [number, number] => [vx * Math.cos(a) - vy * Math.sin(a), vx * Math.sin(a) + vy * Math.cos(a)];
-        const a1 = front ? -fl * 0.5 : fl * 0.12;
-        const a2 = front ? fl * 1.55 : -fl * 0.55;
-        const [ux, uy] = rot(kn[0] - top[0], kn[1] - top[1], a1);
-        const [vx, vy] = rot(hx - kn[0], hy - 1 - kn[1], a1 + a2);
-        kn = [top[0] + ux, top[1] + uy];
-        hx = kn[0] + vx;
-        hy = Math.min(groundY, kn[1] + vy + 1);
+        // Flexed pose by joint angles (radians from vertical, + toward the head): forelegs reach
+        // the forearm forward with the cannon hanging back under the knee ("<" shape); hinds
+        // carry the gaskin back and swing the cannon forward under the hock. Blended in over
+        // the IK pose by how deep into the swing the leg is.
+        const l1 = legLen * 0.52;
+        const l2 = legLen * 0.56;
+        const base = Math.atan2(hx - top[0], hy - 1 - top[1]) * 0.6;
+        const a1 = base + (front ? 0.8 : -0.3) * fl;
+        const a2 = base + (front ? -0.5 : 0.45) * fl;
+        const fk: [number, number] = [top[0] + Math.sin(a1) * l1, top[1] + Math.cos(a1) * l1];
+        const fx = fk[0] + Math.sin(a2) * l2;
+        const fy = fk[1] + Math.cos(a2) * l2;
+        const wgt = Math.min(1, fl * 1.5);
+        kn = [kn[0] + (fk[0] - kn[0]) * wgt, kn[1] + (fk[1] - kn[1]) * wgt];
+        hx += (fx - hx) * wgt;
+        hy = Math.min(groundY, hy + (fy + 1 - hy) * wgt);
       }
     }
     legs.push({ top, knee: kn, x: hx, y: hy, front, near, idx: li });
@@ -502,7 +508,7 @@ function paintSide(c: Ctx, L: Look, P: Proportions, pose: Pose): { sx: number; s
   const nod = moving ? Math.sin(tau * g.bobN * (pose.t - g.bobAt) + 0.6) * g.neck : 0;
   let neckAng = -1.0 - P.headCarriage + g.neck * 0.8 + nod;
   if (pose.graze !== undefined) neckAng = -1.0 + pose.graze * 1.9;
-  if (pose.rear) neckAng = -1.25;
+  if (pose.rear) neckAng = -1.25 + 0.55 * pose.rear; // the neck flexes forward as the forehand rises (and stays inside the frame)
   if (pose.lie) neckAng = -0.55 + (pose.t >= 0.5 ? 0.06 : 0);
   const nl = P.neckLen * s;
   const nbx = shoulderX + 1;
@@ -895,32 +901,54 @@ function paintGear(c: Ctx, L: Look, sx: number, sy: number, bl: number, bh: numb
   };
   void bl;
   if (gear.blanket) {
+    // Wool blanket showing below the skirt: a band of colour with a woven stripe and a pale fringe edge.
     const bc = col('blanket', '#a8392b');
-    poly(c, [[sx - 5.5 * s, sy + 0.5], [sx + 4.5 * s, sy], [sx + 4 * s, sy + bh * 0.95], [sx - 5 * s, sy + bh * 1.05]], bc);
-    line(c, sx - 5 * s, sy + bh * 0.75, sx + 4 * s, sy + bh * 0.7, shade(bc, 0.35), 1);
-    line(c, sx - 5 * s, sy + bh * 0.45, sx + 4 * s, sy + bh * 0.4, shade(bc, -0.35), 1);
+    poly(c, [[sx - 5.6 * s, sy + 0.5], [sx + 4.6 * s, sy], [sx + 4.2 * s, sy + bh * 0.95], [sx - 5.2 * s, sy + bh * 1.05]], bc);
+    line(c, sx - 5.2 * s, sy + bh * 0.72, sx + 4.1 * s, sy + bh * 0.66, shade(bc, 0.35), 1);
+    line(c, sx - 5.2 * s, sy + bh * 0.98, sx + 4.1 * s, sy + bh * 0.9, shade(bc, -0.45), 1);
   }
   if (gear.saddle) {
     const sc = col('saddle', '#6b4126');
-    // Seat, cantle, horn, fender.
-    ellipse(c, sx, sy + 0.8, 4.4 * s, 1.8 * s, sc);
-    poly(c, [[sx - 4.5 * s, sy - 1.8], [sx - 3 * s, sy - 0.2], [sx - 5 * s, sy + 0.8]], shade(sc, -0.15));
-    line(c, sx + 3.6 * s, sy - 0.2, sx + 4.5 * s, sy - 2.6, shade(sc, -0.25), 1.4);
-    poly(c, [[sx - 1.6 * s, sy + 1.5], [sx + 1.6 * s, sy + 1.5], [sx + 1.2 * s, sy + bh * 1.1], [sx - 1.8 * s, sy + bh * 1.05]], shade(sc, 0.1));
-    line(c, sx - 0.2, sy + bh * 1.1, sx - 0.2, sy + bh * 1.4, '#2a1d14', 1);
+    const edge = shade(sc, -0.5);
+    // Skirt: a square leather pad with a dark edge so it reads on any coat.
+    poly(c, [[sx - 5.2 * s, sy - 0.2], [sx + 4.3 * s, sy - 0.4], [sx + 4 * s, sy + bh * 0.55], [sx - 4.8 * s, sy + bh * 0.62]], edge);
+    poly(c, [[sx - 4.6 * s, sy + 0.3], [sx + 3.7 * s, sy + 0.1], [sx + 3.5 * s, sy + bh * 0.45], [sx - 4.2 * s, sy + bh * 0.5]], shade(sc, -0.12));
+    // Seat dips between a high cantle (back) and the horn (front), lit along the top.
+    ellipse(c, sx, sy + 0.6, 4 * s, 1.5 * s, sc);
+    line(c, sx - 2.6 * s, sy - 0.3, sx + 2.4 * s, sy - 0.3, shade(sc, 0.3), 0.9);
+    poly(c, [[sx - 4.6 * s, sy - 2], [sx - 3.2 * s, sy - 0.4], [sx - 4.9 * s, sy + 0.9], [sx - 5.4 * s, sy - 1]], edge);
+    px(c, sx - 4.5 * s, sy - 1.6, shade(sc, 0.3));
+    line(c, sx + 3.5 * s, sy - 0.2, sx + 4.3 * s, sy - 2.6, edge, 1.3);
+    px(c, sx + 4.4 * s, sy - 2.8, shade(sc, 0.25));
+    // Fender and stirrup hang below the skirt.
+    poly(c, [[sx - 1.5 * s, sy + 1.4], [sx + 1.5 * s, sy + 1.4], [sx + 1.1 * s, sy + bh * 1.05], [sx - 1.7 * s, sy + bh * 1.0]], shade(sc, 0.08));
+    line(c, sx + 1.3 * s, sy + 1.6, sx + 0.9 * s, sy + bh * 1.02, edge, 0.8);
+    rect(c, sx - 1.6 * s, sy + bh * 1.05, 2.6 * s, 1.2, '#2a1d14');
     // Cinch.
-    line(c, sx + 2.4 * s, sy + 1.6, sx + 2.6 * s, sy + bh * 1.35, '#3a2a1f', 1);
+    line(c, sx + 2.4 * s, sy + bh * 0.5, sx + 2.6 * s, sy + bh * 1.35, '#3a2a1f', 1);
   }
   if (gear.bags) {
+    // Saddlebags on the hip behind the cantle: a leather pouch with a darker flap and a brass buckle.
     const bc = col('bags', '#5e3a20');
     const big = gear.bags === 'bagsLarge';
-    ellipse(c, sx - 6.5 * s, sy + bh * 0.55, (big ? 2.8 : 2.2) * s, (big ? 2.8 : 2.1) * s, bc);
-    line(c, sx - 8 * s, sy + bh * 0.4, sx - 5 * s, sy + bh * 0.4, shade(bc, -0.3), 1);
+    const bw2 = (big ? 4.6 : 3.8) * s;
+    const bh2 = (big ? 4.4 : 3.6) * s;
+    const bx = sx - 6.8 * s;
+    const by = sy + bh * 0.25;
+    rect(c, bx - bw2 / 2 - 0.5, by - 0.5, bw2 + 1, bh2 + 1, shade(bc, -0.5));
+    rect(c, bx - bw2 / 2, by, bw2, bh2, bc);
+    rect(c, bx - bw2 / 2, by, bw2, bh2 * 0.4, shade(bc, -0.3));
+    px(c, bx, by + bh2 * 0.4, '#c9b27a');
   }
   if (gear.bedroll) {
+    // Bedroll tied across behind the cantle: a canvas cylinder, a lit top, two leather straps.
     const rc = col('bedroll', '#6d6350');
-    ellipse(c, sx - 6.2 * s, sy - 0.6, 2.4 * s, 1.5 * s, rc);
-    line(c, sx - 6.2 * s, sy - 2, sx - 6.2 * s, sy + 0.8, shade(rc, -0.4), 1);
+    const rx = sx - 6.4 * s;
+    const ry = sy - 0.8;
+    ellipse(c, rx, ry, 2.6 * s, 1.7 * s, shade(rc, -0.45));
+    ellipse(c, rx, ry, 2.2 * s, 1.35 * s, rc);
+    line(c, rx - 1.6 * s, ry - 0.9 * s, rx + 1.6 * s, ry - 0.9 * s, shade(rc, 0.35), 0.8);
+    for (const k of [-0.9, 0.9]) line(c, rx + k * s, ry - 1.6 * s, rx + k * s, ry + 1.5 * s, '#3a2617', 0.9);
   }
   if (gear.bridle) {
     const bc = gear.bridle === 'bridleRope' ? '#bfae88' : col('bridle', '#3a2617');
@@ -1065,15 +1093,15 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     const nodY = moving ? Math.sin(t * tau * 2) * (run ? 0.9 : 0.6) : 0;
     // The head hangs well down in front of the chest, the muzzle at about knee height, so it
     // reads as the nearest, most important shape (the face is what a front view is about).
-    const hl = P.headLen * s * 1.6;
-    const hw = P.headW * s * 0.8;
+    const hl = P.headLen * s * 1.72;
+    const hw = P.headW * s * 1.0;
     const poll = chestY - 6 * s + nodY + (run ? 1 : 0);
     ellipse(c, cx, chestY - 6.4 * s, bw * 0.4 * (1 + (sh.crest ?? 0) * 0.15), 3.6 * s, mid);
     ellipse(c, cx - bw * 0.15, chestY - 7.4 * s, bw * 0.2, 1.6 * s, light);
     fbMane(cx + 0.5, chestY - 9.7 * s, chestY - 4.7 * s, false);
     // Ears, then the face: broad forehead and cheeks, a long narrow nasal bone, flared nostrils.
     const earUp = run ? 0.7 : 1;
-    const earTip = poll - 4.4 * s * earUp;
+    const earTip = poll - 4.6 * s * earUp;
     // Ears: a crisp 1px inner outline parts them from the back behind them (the barrel there is
     // the same colour), dark inside the cup. Dark coats get the cool rim instead of a dark line.
     const sep = L.rim ?? shade(L.body[0], -0.62);
@@ -1115,9 +1143,12 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     px(c, cx + hw * 0.42, poll + hl * 0.9, deep);
     if (sh.mottle) px(c, cx, poll + hl * 0.98, '#c9a49a');
     // Eyes sit wide, on the corners of the forehead, with a lit brow above the near one.
-    px(c, cx - hw * 0.95, poll + hl * 0.26 - 1, hi);
-    px(c, cx - hw * 0.95, poll + hl * 0.26, L.eye);
-    px(c, cx + hw * 0.95, poll + hl * 0.26, L.eye);
+    // Big dark eyes are what make a face read at a glance: 1x2 with a catch-light on the near one.
+    for (const side of [-1, 1]) {
+      rect(c, cx + side * hw * 0.82 - 0.5, poll + hl * 0.24, 1, 2, L.eye);
+      px(c, cx + side * hw * 0.82, poll + hl * 0.24 - 1, side < 0 ? hi : dark);
+    }
+    px(c, cx - hw * 0.82 - 0.5, poll + hl * 0.24, shade(L.white, -0.1));
     if (L.face !== 'none') {
       const len = L.face === 'star' ? 1.2 : L.face === 'snip' ? 1 : hl * 0.85;
       const wd = L.face === 'bald' ? hw * 1.4 : L.face === 'blaze' ? 2 : 1;
@@ -1143,7 +1174,7 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     const rumpY = gy - legB + bob; // point of the buttock, nearest the camera
     const withersY = rumpY - depth;
     const midY = (rumpY + withersY) / 2;
-    const seatY = withersY + depth * 0.5;
+    const seatY = withersY + depth * 0.44;
     // Front legs, far: hooves peek out under the belly.
     const foreGround = gy - 4.6 * s;
     for (const [i, side, ph] of [[0, -1, 0.75], [1, 1, 0.25]] as const) fbLeg(cx + side * bw * 0.42, rumpY - 2, foreGround - lift(ph) * 0.6, legMark(i), false, lw * 1.2, side, lift(ph));
@@ -1167,7 +1198,7 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     fbMane(cx + 0.3, poll + 2, withersY + 1, true);
     if (L.dorsal) line(c, cx, withersY + 2, cx, rumpY - 4, L.dorsal, 1);
     applySimplePattern(c, L, cx, midY, bw, depth, 'back');
-    paintTackTop(c, L, cx, seatY, bw, s, 'back', gearCol);
+    paintTackTop(c, L, cx, seatY, bw, s, 'back', gearCol, 'under');
     seat = { sx: cx, sy: seatY };
     // Hind legs (near): broad gaskins, hocks, fine cannons.
     for (const [i, side, ph] of [[2, -1, 0.25], [3, 1, 0.75]] as const) fbLeg(cx + side * bw * 0.58, rumpY - 1, gy - lift(ph), legMark(i), true, lw * 1.8, side < 0 ? -1 : 1, lift(ph));
@@ -1186,6 +1217,7 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     c.restore();
     line(c, cx, qy - 2 * s, cx, rumpY + 2.4 * s, deep, 1.2);
     applySimplePattern(c, L, cx, qy, bw, depth, 'rump');
+    paintTackTop(c, L, cx, seatY, bw, s, 'back', gearCol, 'over');
     paintBackTail(c, L, cx, qy - 4 * s, s, t, moving, run, gy);
   }
   if (L.spot) {
@@ -1212,20 +1244,15 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
 }
 
 /** Tack on the horse's back seen from above (front or back view). */
-function paintTackTop(c: Ctx, L: Look, cx: number, seatY: number, bw: number, s: number, view: 'front' | 'back', gearCol: (slot: string, fb: string) => string): void {
+function paintTackTop(c: Ctx, L: Look, cx: number, seatY: number, bw: number, s: number, view: 'front' | 'back', gearCol: (slot: string, fb: string) => string, part: 'all' | 'under' | 'over' = 'all'): void {
   const toward = view === 'front' ? 1 : -1; // +1: the horn is nearer the camera (lower on screen)
+  if (part !== 'under') paintTackBehind(c, L, cx, seatY, bw, s, view, gearCol, toward);
+  if (part === 'over') return;
   if (L.gear.blanket) {
     const bc = gearCol('blanket', '#a8392b');
     ellipse(c, cx, seatY, bw * 0.98, 5.2 * s, bc);
     ellipse(c, cx + bw * 0.7, seatY + 0.5, bw * 0.3, 4.2 * s, shade(bc, -0.35));
     line(c, cx - bw * 0.98, seatY - 2 * s, cx - bw * 0.98, seatY + 2 * s, shade(bc, 0.35), 1);
-  }
-  if (L.gear.bags) {
-    const bc = gearCol('bags', '#5e3a20');
-    const big = L.gear.bags === 'bagsLarge';
-    const by = seatY - toward * 4.6 * s + (view === 'front' ? 1.5 : 0);
-    ellipse(c, cx - bw * 0.86, by, (big ? 2.4 : 1.9) * s, (big ? 3 : 2.5) * s, bc);
-    ellipse(c, cx + bw * 0.86, by, (big ? 2.4 : 1.9) * s, (big ? 3 : 2.5) * s, shade(bc, -0.3));
   }
   if (L.gear.saddle) {
     const sc = gearCol('saddle', '#6b4126');
@@ -1241,7 +1268,36 @@ function paintTackTop(c: Ctx, L: Look, cx: number, seatY: number, bw: number, s:
     ellipse(c, cx, seatY - toward * 3 * s, bw * 0.45, 1.2 * s, shade(sc, -0.25)); // cantle
     ellipse(c, cx, seatY + toward * 3.2 * s, 1.2 * s, 1.1 * s, shade(sc, -0.3)); // horn
   }
-  if (L.gear.bedroll) ellipse(c, cx, seatY - toward * 4.8 * s, bw * 0.72, 1.5 * s, gearCol('bedroll', '#6d6350'));
+}
+
+/** Bags and bedroll, the tack behind the cantle (drawn over the quarters in back view). */
+function paintTackBehind(c: Ctx, L: Look, cx: number, seatY: number, bw: number, s: number, view: 'front' | 'back', gearCol: (slot: string, fb: string) => string, toward: number): void {
+  if (L.gear.bags) {
+    const bc = gearCol('bags', '#5e3a20');
+    const big = L.gear.bags === 'bagsLarge';
+    // Bags hang flat on the flanks behind the cantle: squarish leather with a flap and a buckle,
+    // tall rather than round so they never read as ears from the front.
+    const by = view === 'front' ? seatY + 0.5 : seatY + 3.4 * s + 1;
+    const bwid = (big ? 2.2 : 1.7) * s;
+    const bh2 = (big ? 3.2 : 2.6) * s;
+    for (const side of [-1, 1]) {
+      const x = cx + side * bw * 0.97;
+      const col = side < 0 ? bc : shade(bc, -0.3);
+      rect(c, x - bwid / 2, by - bh2 / 2, bwid, bh2, col);
+      rect(c, x - bwid / 2, by - bh2 / 2, bwid, 1, shade(bc, side < 0 ? 0.2 : -0.1));
+      px(c, x, by, '#c9b27a');
+    }
+  }
+  if (L.gear.bedroll) {
+    // A canvas roll across the loin: dark underside, lit top, two leather straps.
+    const rc = gearCol('bedroll', '#6d6350');
+    // Back view: it rests just above the croup, which hides the loin behind the cantle.
+    const ry = view === 'front' ? seatY - 4.8 * s : seatY + 1.2 * s;
+    ellipse(c, cx, ry + 0.4, bw * 0.66, 1.7 * s, shade(rc, -0.45));
+    ellipse(c, cx, ry, bw * 0.62, 1.3 * s, rc);
+    line(c, cx - bw * 0.5, ry - 0.8 * s, cx + bw * 0.5, ry - 0.8 * s, shade(rc, 0.35), 0.8);
+    for (const k of [-0.32, 0.32]) line(c, cx + k * bw, ry - 1.5 * s, cx + k * bw, ry + 1.5 * s, '#3a2617', 1);
+  }
 }
 
 /** Tail hanging between the quarters in back view, per style. */
@@ -1323,9 +1379,9 @@ function paletteFor(L: Look): string[] {
     if (!id) continue;
     const g = getItem(id).gear;
     const c = g?.color ?? '#6b4126';
-    pal.push(c, shade(c, 0.35), shade(c, -0.35), shade(c, -0.15), shade(c, 0.1), shade(c, -0.25), shade(c, -0.3));
+    pal.push(c, shade(c, 0.35), shade(c, -0.35), shade(c, -0.15), shade(c, 0.1), shade(c, -0.25), shade(c, -0.3), shade(c, -0.5), shade(c, -0.45), shade(c, -0.12), shade(c, 0.3), shade(c, 0.08), shade(c, 0.2));
   }
-  pal.push('#bfae88', '#3a2617', '#2a1d14', '#3a2a1f', '#e0e0e0', '#a8392b', shade('#bfae88', -0.2), shade('#3a2617', -0.2));
+  pal.push('#c9b27a', '#bfae88', '#3a2617', '#2a1d14', '#3a2a1f', '#e0e0e0', '#a8392b', shade('#bfae88', -0.2), shade('#3a2617', -0.2));
   return pal;
 }
 

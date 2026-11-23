@@ -195,7 +195,7 @@ export function treatHorse(h: HorseData, itemId: string, day: number): CareResul
   h.injuries = h.injuries.filter((i) => i.severity > 0);
   const r = grantBond(h, 'treatInjury', day);
   addHistory(h, day, `You treated ${h.name}'s injuries.`);
-  return { ok: true, message: `You dress ${h.name}'s wounds. It will still need rest to heal.`, bondGained: r.gained, anim: 'treat' };
+  return { ok: true, message: `You dress ${h.name}'s wounds. ${h.sex === 'mare' ? 'She' : 'He'} will still need rest to heal.`, bondGained: r.gained, anim: 'treat' };
 }
 
 /** Soothing voice and hands. Works best when the horse is stressed. */

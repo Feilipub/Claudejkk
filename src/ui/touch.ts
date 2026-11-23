@@ -28,6 +28,7 @@ const ACTIONS: Btn[] = [
   { label: 'Assobio', code: 'KeyH', icon: 'whistle' },
   { label: 'Arma', code: 'KeyG', icon: 'gun' },
   { label: 'Atirar', code: 'Mouse0', cls: 'fire', hold: true, icon: 'sight' },
+  { label: 'Recarregar', code: 'KeyR', cls: 'sw rl' },
   { label: '◀', code: 'KeyZ', cls: 'sw' },
   { label: '▶', code: 'KeyX', cls: 'sw' },
 ];
@@ -39,6 +40,8 @@ const MENUS: Btn[] = [
   { label: 'Cavalo', code: 'KeyB', icon: 'shoe', cap: true },
   { label: 'Diário', code: 'KeyJ', icon: 'book', cap: true },
   { label: 'Acampar', code: 'KeyK', icon: 'tent', cap: true },
+  { label: 'Lampião', code: 'KeyL' },
+  { label: 'Agachar', code: 'KeyV' },
 ];
 
 export class TouchControls {
@@ -90,10 +93,15 @@ export class TouchControls {
     };
     for (const b of ACTIONS) make(this.root.querySelector('.tbtns')!, b);
     for (const b of MENUS) make(this.root.querySelector('.tmenus')!, b);
-    // Tapping a line of the interaction prompt runs that option.
+    // Tapping a line of the interaction prompt runs that option — a tap, not a swipe that happens to start there.
+    let downAt: { x: number; y: number; i: number } | null = null;
     document.addEventListener('pointerdown', (e) => {
       const row = (e.target as HTMLElement).closest?.('.pa[data-i]') as HTMLElement | null;
-      if (row && this.shown) this.game.interactions.execIndex(Number(row.dataset.i));
+      downAt = row && this.shown ? { x: e.clientX, y: e.clientY, i: Number(row.dataset.i) } : null;
+    });
+    document.addEventListener('pointerup', (e) => {
+      if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 12) this.game.interactions.execIndex(downAt.i);
+      downAt = null;
     });
     const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     if (coarse) this.show();

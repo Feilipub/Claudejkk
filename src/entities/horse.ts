@@ -663,7 +663,7 @@ export class HorseEntity extends Entity {
           if (this.rng.chance(0.4 * (1 - rs.obedience))) this.throwRider(game, 'reared and threw you');
         } else {
           this.bolting = 2.5;
-          game.notify(`${d.name} bolts! (Ctrl / E to calm)`, 'bad');
+          game.notify(`${d.name} bolts! (${typeof document !== 'undefined' && document.body.classList.contains('has-touch') ? 'Frear or E' : 'Ctrl / E'} to calm)`, 'bad');
         }
       }
     }
@@ -678,6 +678,15 @@ export class HorseEntity extends Entity {
     // Pressed against something for a moment: the horse checks itself to a walk so the HUD and feel agree.
     this.bumpT = hit ? this.bumpT + dt : 0;
     if (this.bumpT > 0.5 && this.gaitLevel > 1) this.gaitLevel = 1;
+    // Wedged for over a second while the rider keeps asking: step the horse to the nearest clear spot.
+    if (this.bumpT > 1.1) {
+      const spot = freeSpotNear(game, this.x, this.y, (x, y) => !game.world.blockedPx(x, y, true) && !game.world.blockedPx(x + Math.cos(this.heading) * 9, y + Math.sin(this.heading) * 4, true) && !game.world.blockedPx(x - Math.cos(this.heading) * 6, y - Math.sin(this.heading) * 3, true));
+      if (spot) {
+        this.x = spot.x;
+        this.y = spot.y;
+      }
+      this.bumpT = 0;
+    }
   }
 
   private tryJump(game: Game): void {
@@ -815,4 +824,17 @@ export class HorseEntity extends Entity {
 function isGrazeable(W: Game['world'], x: number, y: number): boolean {
   const g = W.groundAt(Math.floor(x / 16), Math.floor(y / 16));
   return g === 3 || g === 4 || g === 5 || g === 12;
+}
+
+/** Nearest point (ring search, 4px steps up to 40px) where `ok` holds. Used to free wedged riders and walkers. */
+export function freeSpotNear(game: Game, x: number, y: number, ok: (x: number, y: number) => boolean): { x: number; y: number } | null {
+  void game;
+  for (let r = 4; r <= 40; r += 4)
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r;
+      if (ok(px, py)) return { x: px, y: py };
+    }
+  return null;
 }

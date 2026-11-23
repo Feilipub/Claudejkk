@@ -47,7 +47,7 @@ export const DIALOGUE: DialogueTree[] = [
       },
       {
         id: 'arrival3',
-        lines: [{ text: 'Biscuit\'s saddled out front. Morgan mare, thirteen years old, hasn\'t surprised anybody since Grant was president. She knows the river road. Ranch is south-west, follow the water. Bring her back when Silas finds you something with more opinions.' }],
+        lines: [{ text: 'Biscuit\'s saddled out front. Morgan gelding, fourteen years old, hasn\'t surprised anybody since Grant was president. He knows the river road. Ranch is south-west, follow the water. Bring him back when Silas finds you something with more opinions.' }],
         options: [
           { text: 'I\'m obliged, Mr. Oakes.', tone: 'kind', next: 'end', effects: [{ opinion: 5 }] },
           { text: 'Biscuit. That\'s a name to strike fear.', tone: 'joke', next: 'biscuit' },

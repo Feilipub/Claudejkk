@@ -40,6 +40,7 @@ export class LawSystem {
   wanted: Record<string, WantedState> = {};
   /** Lawmen spawned to hunt the player. */
   private incidentSeq = 0;
+  private townCheck = 0;
   private countedIncidents = new Set<number>();
   posseCooldown = 0;
   constructor(game: Game) {
@@ -90,7 +91,7 @@ export class LawSystem {
         n.witnessT = BALANCE.law.reportTimeSec * (1.6 - law);
       }
     }
-    if (witnessed && kind !== 'discharge') g.notify(`Witnessed: ${CRIME_NAMES[kind]}. Silence the witness or ride.`, 'law');
+    if (witnessed && kind !== 'discharge') g.notify(`Witnessed: ${CRIME_NAMES[kind]}. The witness will run for the law — ride off, or stay and face it.`, 'law');
   }
 
   /** A civilian witness made it to the law. */
@@ -111,7 +112,9 @@ export class LawSystem {
     w.bounty += BALANCE.law.bounty[kind] ?? 2;
     w.crimes.push(CRIME_NAMES[kind]);
     w.lastDay = g.clock.day;
-    w.level = w.bounty >= 50 ? 3 : w.bounty >= 3 ? 2 : 1;
+    // Lethal force is for killers and the truly notorious; everyone else gets the chance to come quietly.
+    const killer = w.crimes.includes(CRIME_NAMES.murder);
+    w.level = killer || w.bounty >= 150 ? 3 : w.bounty >= 3 ? 2 : 1;
     if (w.level >= 2 && was < 2) g.notify(`You are WANTED in ${REGIONS.find((r) => r.id === region)?.name}. Bounty: ${w.bounty.toFixed(0)} dollars.`, 'law');
     else if (w.level >= 2) g.notify(`Bounty raised to ${w.bounty.toFixed(0)} dollars.`, 'law');
     // Lawmen in the area are alerted.
@@ -131,6 +134,25 @@ export class LawSystem {
     this.posseCooldown -= dt;
     const region = g.currentRegion;
     const w = this.get(region);
+    // Wanted and walking around town: sooner or later the nearest lawman comes over.
+    this.townCheck -= dt;
+    if (this.townCheck <= 0) {
+      this.townCheck = 15;
+      if (w.level >= 2 && this.inTown(g.player.x, g.player.y)) {
+        const lawmen = g.spatial.query(g.player.x, g.player.y, 1000, 'npc').filter((e) => {
+          const l = e as Npc;
+          return (l.occupation === 'sheriff' || l.occupation === 'deputy') && l.alive && l.state === 'schedule';
+        }) as Npc[];
+        const l = lawmen.sort((a, b) => Math.hypot(a.x - g.player.x, a.y - g.player.y) - Math.hypot(b.x - g.player.x, b.y - g.player.y))[0];
+        if (l) {
+          if (w.level >= 3) {
+            l.hostile = true;
+            l.setState('combat');
+          } else l.setState('pursue');
+          l.say(w.level >= 3 ? 'There they are!' : 'You there! Hold it right where you are.', 3);
+        }
+      }
+    }
     // Bounty hunters ride out after notorious players in the wilds.
     if (w.level >= 2 && w.bounty >= BALANCE.law.hunterThreshold && this.posseCooldown <= 0 && !this.inTown(g.player.x, g.player.y)) {
       this.posseCooldown = 240;
@@ -174,6 +196,7 @@ export class LawSystem {
           },
         },
         { label: 'Go to jail', enabled: true, run: () => this.jail(region) },
+        { label: 'Resist arrest', enabled: true, run: () => this.resistArrest(region, lawman) },
       ],
       () => this.resistArrest(region, lawman),
     );
