@@ -91,10 +91,10 @@ export const JOB_TEMPLATES: JobTemplate[] = [
     pay: { base: 0.15, perUnit: 0.05 }, gather: { items: ['wheatSheaf'], qty: [6, 10], deadlineDays: 1 } }),
   T({ id: 'fish_trout', title: 'Fish for the cookhouse', kind: 'gather', risk: 'honest', skill: 'survival', faction: 'townsfolk', xp: 6, minutes: 6.5,
     blurb: 'The crew eats trout on Fridays. Steady price, no matter how full the market is.',
-    pay: { base: 0.25, perUnit: 0.18 }, gather: { items: ['fishTrout'], qty: [6, 8], deadlineDays: 2 } }),
-  T({ id: 'fish_catfish', title: 'Catfish for the hotel kitchen', kind: 'gather', risk: 'honest', skill: 'survival', faction: 'townsfolk', xp: 6, minutes: 6.5,
-    blurb: 'The Grand Meridian wants river fish for its supper table. Catfish or bass.',
-    pay: { base: 0.25, perUnit: 0.18 }, gather: { items: ['fishCatfish', 'fishBass'], qty: [6, 8], deadlineDays: 2 } }),
+    pay: { base: 0.25, perUnit: 0.16 }, gather: { items: ['fishTrout'], qty: [6, 8], deadlineDays: 2 } }),
+  T({ id: 'fish_bass', title: 'Bass for the hotel kitchen', kind: 'gather', risk: 'honest', skill: 'survival', faction: 'townsfolk', xp: 6, minutes: 6.5,
+    blurb: 'The hotel kitchen wants smallmouth bass for the supper table. Steady price, however full the market is.',
+    pay: { base: 0.25, perUnit: 0.16 }, gather: { items: ['fishBass'], qty: [6, 8], deadlineDays: 2 } }),
   T({ id: 'hunt_deer', title: 'Hunting contract: deer hides', kind: 'gather', risk: 'risky', skill: 'survival', faction: 'townsfolk', xp: 10, minutes: 7,
     blurb: 'A tanner wants clean buckskin. Paid at a guaranteed price.',
     pay: { base: 0.5, perUnit: 3.6 }, gather: { items: ['peltDeer'], qty: [1, 2], deadlineDays: 3 } }),
@@ -138,7 +138,7 @@ export const JOB_BOARDS: JobBoardDef[] = [
   { settlementId: 'larkspur', name: 'Larkspur Notice Board', buildings: ['sheriff', 'telegraph', 'hotel'], slots: 4,
     templates: ['freight', 'mail_run', 'strongbox', 'bounty_petty', 'bounty_gang', 'bartend', 'smith_helper', 'hunt_deer', 'hunt_coyote'] },
   { settlementId: 'portashby', name: 'Port Ashby Exchange Board', buildings: ['station', 'sheriff', 'bank'], slots: 4,
-    templates: ['freight', 'mail_run', 'strongbox', 'bounty_petty', 'bounty_gang', 'bartend', 'hunt_wolf', 'fish_catfish'] },
+    templates: ['freight', 'mail_run', 'strongbox', 'bounty_petty', 'bounty_gang', 'bartend', 'hunt_wolf', 'fish_bass'] },
   { settlementId: 'brannigan', name: 'Brannigan Ranch Chalkboard', buildings: ['ranchhouse', 'barn'], slots: 3, requiresQuest: 'main_arrival',
     templates: ['cattle_drive', 'mend_fences', 'feed_stock', 'break_colt'] },
   { settlementId: 'whitepeak', name: 'Whitepeak Trading Post Board', buildings: ['tradingpost', 'barn'], slots: 3,
@@ -152,6 +152,23 @@ export const JOB_BOARDS: JobBoardDef[] = [
   { settlementId: 'meridian', name: 'Meridian Junction Freight Office', buildings: ['station', 'telegraph'], slots: 3,
     templates: ['freight', 'mail_run', 'strongbox'] },
   { settlementId: 'halvorsen', name: 'Halvorsen Farm Gate', buildings: ['house', 'barn'], slots: 2,
+    templates: ['harvest_wheat', 'mend_fences', 'feed_stock'] },
+  // Open-world expansion settlements (world/settlements team).
+  { settlementId: 'harrow', name: 'Harrow Junction Freight Office', buildings: ['station', 'warehouse', 'sheriff'], slots: 4,
+    templates: ['freight', 'mail_run', 'strongbox', 'bounty_petty', 'bounty_gang', 'bartend', 'smith_helper'] },
+  { settlementId: 'golondrinas', name: 'Las Golondrinas Plaza Board', buildings: ['store', 'chapel', 'saloon'], slots: 3,
+    templates: ['harvest_wheat', 'smith_helper', 'bartend', 'freight', 'hunt_coyote'] },
+  { settlementId: 'lodestar', name: 'Lodestar Claims Board', buildings: ['assay', 'tradingpost'], slots: 3,
+    templates: ['ore_contract', 'freight', 'strongbox', 'hunt_wolf', 'bartend'] },
+  { settlementId: 'tollers', name: 'Toller\'s Landing Post Board', buildings: ['tradingpost', 'warehouse'], slots: 3,
+    templates: ['fish_bass', 'freight', 'mail_run'] },
+  { settlementId: 'coldiron', name: 'Coldiron Cattle Co. Office', buildings: ['ranchhouse', 'cookhouse'], slots: 3,
+    templates: ['cattle_drive', 'mend_fences', 'feed_stock', 'hunt_coyote'] },
+  { settlementId: 'starling', name: 'Starling Ranch Yard', buildings: ['ranchhouse', 'stable'], slots: 2,
+    templates: ['feed_stock', 'mend_fences', 'cattle_drive'] },
+  { settlementId: 'arrieta', name: 'Arrieta Sheep Camp', buildings: ['house', 'barn'], slots: 2,
+    templates: ['mend_fences', 'feed_stock', 'hunt_wolf', 'hunt_coyote'] },
+  { settlementId: 'ashgrove', name: 'Ashgrove Orchard Gate', buildings: ['store', 'house', 'barn'], slots: 2,
     templates: ['harvest_wheat', 'mend_fences', 'feed_stock'] },
 ];
 
@@ -168,12 +185,12 @@ export const OCCUPATION_WORK: Record<string, string[]> = {
   deputy: ['bounty_petty', 'bounty_gang'],
   miner: ['ore_contract'],
   logger: ['lumber_contract'],
-  cook: ['fish_trout', 'fish_catfish'],
+  cook: ['fish_trout', 'fish_bass'],
   hunter: ['hunt_deer', 'hunt_coyote', 'hunt_wolf'],
   trapper: ['hunt_deer', 'hunt_coyote', 'hunt_wolf'],
   telegrapher: ['mail_run', 'freight'],
   railroad: ['freight', 'strongbox', 'mail_run'],
-  hotelier: ['freight', 'fish_catfish'],
+  hotelier: ['freight', 'fish_bass'],
   merchant: ['freight', 'strongbox'],
 };
 
@@ -249,7 +266,7 @@ export interface TradeGoodDef {
 }
 
 export const TRADE_GOODS: Record<string, TradeGoodDef> = {
-  oreRaw: { produced: ['drylands'], scarce: ['blackwater'] },
+  oreRaw: { produced: ['drylands', 'sierra'], scarce: ['blackwater'] },
   lumber: { produced: ['pinehollow'], scarce: ['drylands', 'redstone'] },
   wheatSheaf: { produced: ['dustfall'], scarce: ['pinehollow', 'sierra'] },
   furBundle: { produced: ['sierra'], scarce: ['blackwater'] },
@@ -274,6 +291,11 @@ export const TRADE_POSTS: Record<string, TradePostDef> = {
   store_cedar: { stock: { axe: 3 }, buys: ['material'] },
   store_sulfur: { buys: ['material'] },
   store_fort: { buys: ['material'] },
+  // Open-world expansion shops.
+  ranch_coldiron: { stock: { cattleBill: 4 } },
+  store_lodestar: { stock: { axe: 1 }, buys: ['material'] },
+  store_golondrinas: { buys: ['material'] },
+  store_harrow: { stock: { toolCrate: 1, coffeeSack: 2 } },
 };
 
 // --- Homesteads ------------------------------------------------------------------------------

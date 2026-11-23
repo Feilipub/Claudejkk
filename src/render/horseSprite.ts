@@ -100,6 +100,8 @@ function rampFor(coatId: string): Ramp {
 
 const WHITE: [string, string, string, string] = ['#8a8076', '#cac2b4', '#eee8dc', '#fffbf2'];
 const HOOF_DARK = ['#241c18', '#40342c', '#62544a'];
+/** White socks read brighter than body white: thin legs need the lighter values to stay white at 1×. */
+const LEG_WHITE = ['#9a8e80', '#dcd4c6', '#f6f1e8'];
 const HOOF_PALE = ['#6a5a46', '#b49c7c', '#d8c4a0'];
 const FAR_TINT = '#1c1424';
 
@@ -226,6 +228,13 @@ function lookFor(h: HorseData): Look {
     z: face === 'bald' || face === 'blaze' ? '#c9a49a' : leopard ? '#b8988c' : R.muzzle,
   };
   for (const z of ['S', 'T', 'U', 'N', 'B']) key[z] = white.has(z) ? WHITE[2] : coat[2];
+  const pts = R.points && !leopard ? R.points : ([coat[0], coat[1], coat[2]] as [string, string, string]);
+  // Every key carries the whole alphabet (leg, hoof and feather characters too), so any drawing
+  // can be painted through any key without a missing character.
+  Object.assign(key, {
+    q: pts[0], p: pts[1], P: pts[2], Q: pts[0], r: pts[1], R: pts[2], J: pts[0], k: pts[1], K: pts[2],
+    g: HOOF_DARK[0], f: HOOF_DARK[1], F: HOOF_DARK[2], V: mane[0], v: mane[1], w: mane[2],
+  });
   // Legs: each leg its own key so socks and stockings land on the right leg.
   const legs = [...ap.legs] as string[];
   const legFull = [false, false, false, false];
@@ -236,13 +245,12 @@ function lookFor(h: HorseData): Look {
     for (let i = 0; i < 4; i++) legs[i] = 'stocking';
     legFull[2] = legFull[3] = true;
   }
-  const pts = R.points && !leopard ? R.points : ([coat[0], coat[1], coat[2]] as [string, string, string]);
   const breed = getBreed(h.breedId);
   const legKeys = legs.map((m, i) => {
     const lvl = m === 'stocking' ? 3 : m === 'sock' ? 2 : m === 'coronet' ? 1 : 0;
     const k: Key = { ...key };
     if (legFull[i]) Object.assign(k, { o: WHITE[0], '1': WHITE[1], '2': WHITE[2], '3': WHITE[3] });
-    const W3 = [WHITE[0], WHITE[1], WHITE[2]];
+    const W3 = LEG_WHITE;
     const set = (chars: string, white3: boolean) => {
       const c = white3 ? W3 : pts;
       k[chars[0]!] = c[0]!;
@@ -432,7 +440,7 @@ class SideBuilder {
     // Masks live in standing-body space: rotate each pixel back to find its mask cell.
     const back = (x: number, y: number): [number, number] => {
       const dx = x + 0.5 - px;
-      const dy = y + 0.5 - py;
+      const dy = y + 0.5 - R.drop - py;
       return [Math.floor(px + dx * Math.cos(rad) - dy * Math.sin(rad)), Math.floor(py + dx * Math.sin(rad) + dy * Math.cos(rad))];
     };
     draw(c, this.memo(`r${i}`, () => gridCanvas(applyMasks(R.img, this.masksBody(), back), this.L.legKeys[0]!)), R.img[0], R.img[1]);
@@ -441,7 +449,7 @@ class SideBuilder {
     const [sx, sy] = A.anchors.seat;
     const dx = sx - px;
     const dy = sy - py;
-    return { img: cv, sx: Math.round(px + dx * Math.cos(-rad) - dy * Math.sin(-rad)), sy: Math.round(py + dx * Math.sin(-rad) + dy * Math.cos(-rad)) };
+    return { img: cv, sx: Math.round(px + dx * Math.cos(-rad) - dy * Math.sin(-rad)), sy: Math.round(py + dx * Math.sin(-rad) + dy * Math.cos(-rad)) + R.drop };
   }
   /** Masks without the leg-reaching ones (rear and lie draw legs inside the same grid). */
   private masksBody(): Grid[] {

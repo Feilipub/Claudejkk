@@ -424,6 +424,7 @@ export class Game {
       return;
     }
     if (h.rider) return;
+    h.wake('Woken by your whistle');
     const range = BALANCE.horse.whistleRangeByBond[bondLevel(h.data) - 1]! * (h.data.traits.includes('loyal') ? 1.3 : 1);
     const d = Math.hypot(h.x - p.x, h.y - p.y);
     if (d > range) {

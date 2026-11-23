@@ -352,17 +352,17 @@ export const ROUTINES: Record<string, Routine> = {
       b(0, 3, 'saloon', 'drink'),
       b(3, 12, 'bed', 'sleep'),
       b(12, 13, 'home', 'eat'),
-      b(13, 16, 'street', 'stroll'),
-      b(16, 24, 'saloon', 'drink'),
+      b(13, 14.5, 'street', 'stroll'),
+      b(14.5, 24, 'saloon', 'drink'),
     ],
   },
   gambler: {
     week: [
       b(0, 4, 'saloon', 'deal'),
-      b(4, 12, 'bed', 'sleep'),
+      b(4, 11, 'bed', 'sleep'),
+      b(11, 12, 'street', 'loiter'),
       b(12, 13, 'saloon', 'eat'),
-      b(13, 15, 'street', 'loiter'),
-      b(15, 24, 'saloon', 'deal'),
+      b(13, 24, 'saloon', 'deal'),
     ],
   },
   pianist: {

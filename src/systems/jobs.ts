@@ -92,6 +92,7 @@ export class JobSystem {
   stats = { done: 0, failed: 0, earned: 0 };
   /** Strike mini-game in progress (blocks other interactions). */
   strike: Strike | null = null;
+  private strikeEndedAt = -99;
   private rng = new Rng(77);
   private cattle: Animal[] = [];
   private pennedSet = new Set<Animal>();
@@ -115,9 +116,9 @@ export class JobSystem {
     });
   }
 
-  /** True while a strike mini-game owns the interact key. */
+  /** True while a strike mini-game owns the interact key (and for a moment after, so the last swing doesn't fire a prompt). */
   get busy(): boolean {
-    return this.strike !== null;
+    return this.strike !== null || this.game.time - this.strikeEndedAt < 0.35;
   }
 
   // --- Queries ------------------------------------------------------------------------------
@@ -535,6 +536,7 @@ export class JobSystem {
   private endStrike(): void {
     if (!this.strike) return;
     this.strike = null;
+    this.strikeEndedAt = this.game.time;
     this.game.ui.setFishing(null);
   }
 
@@ -785,6 +787,8 @@ export class JobSystem {
       n.x = pos.x;
       n.y = pos.y;
       n.tag = 'job_bounty';
+      // Wanted men: shooting one first is not murder.
+      n.hostile = true;
       n.setState('guard');
       g.addEntity(n);
     }

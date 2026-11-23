@@ -1068,7 +1068,7 @@ export class UI {
     if (def.services.includes('stage')) {
       body.insertAdjacentHTML('beforeend', '<h3>Stagecoach</h3><p class="small-note">Your horse is tied behind the coach and travels with you. Time passes on the road.</p>');
       const here = SETTLEMENTS.find((x) => g.buildingsOf(x.id).some((b) => b.shopId === shopId));
-      const stops = ['larkspur', 'portashby', 'sulfurflats', 'meridian', 'whitepeak', 'fortrourke'].filter((id) => id !== here?.id);
+      const stops = ['larkspur', 'portashby', 'harrow', 'golondrinas', 'sulfurflats', 'meridian', 'whitepeak', 'fortrourke'].filter((id) => id !== here?.id);
       for (const id of stops) {
         const dest = SETTLEMENTS.find((x) => x.id === id)!;
         const dist = here ? Math.hypot(dest.x - here.x, dest.y - here.y) : 200;

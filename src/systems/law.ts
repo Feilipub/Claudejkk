@@ -40,6 +40,9 @@ export class LawSystem {
   wanted: Record<string, WantedState> = {};
   /** Lawmen spawned to hunt the player. */
   private incidentSeq = 0;
+  /** Gunshots heard in town recently (a warning first, a charge after that). */
+  private shotsHeard = 0;
+  private shotsResetAt = 0;
   private townCheck = 0;
   private countedIncidents = new Set<number>();
   posseCooldown = 0;
@@ -66,6 +69,20 @@ export class LawSystem {
   reportCrime(kind: CrimeKind, x: number, y: number, victimId?: string): void {
     const g = this.game;
     if (kind === 'discharge' && !this.inTown(x, y)) return;
+    if (kind === 'discharge') {
+      // Everyone in town hears a shot: the nearest lawman walks over, and a second shot is a charge.
+      const lawmen = (g.spatial.query(x, y, 520, 'npc') as Npc[]).filter((n) => (n.occupation === 'sheriff' || n.occupation === 'deputy') && n.alive && n.state !== 'combat');
+      const l = lawmen.sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
+      if (l) {
+        this.shotsHeard++;
+        if (this.shotsHeard === 1) l.say('Who\'s shooting? Holster that, friend.', 3.5);
+        if (this.shotsHeard >= 2) {
+          this.addCrime(g.world.regionAtPx(x, y), 'discharge', ++this.incidentSeq);
+          l.setState('pursue');
+        } else if (l.state === 'schedule') l.setState('pursue');
+        this.shotsResetAt = g.clock.minutes + 120;
+      }
+    }
     g.rep.add('honor', -HONOR_COST[kind]);
     if (kind === 'murder' || kind === 'robbery' || kind === 'horseTheft') g.rep.add('notoriety', 4);
     const region = g.world.regionAtPx(x, y);
@@ -132,6 +149,7 @@ export class LawSystem {
   update(dt: number): void {
     const g = this.game;
     this.posseCooldown -= dt;
+    if (this.shotsHeard && g.clock.minutes > this.shotsResetAt) this.shotsHeard = 0;
     const region = g.currentRegion;
     const w = this.get(region);
     // Wanted and walking around town: sooner or later the nearest lawman comes over.

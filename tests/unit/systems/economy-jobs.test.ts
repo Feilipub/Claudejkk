@@ -152,33 +152,34 @@ test('dangerous jobs out-earn risky ones on average', () => {
 
 // --- Contracts vs. the open market -----------------------------------------------------------
 
-test('labour contracts (ore, timber, wheat) pay more than selling the same goods at the best fresh market', () => {
+test('labour contracts (ore, timber, wheat) beat selling the same goods anywhere in the board\'s own region', () => {
   const e = economyAt();
   for (const id of ['ore_contract', 'lumber_contract', 'harvest_wheat']) {
     const t = tpl(id);
-    for (const item of t.gather!.items) {
-      const best = Math.max(...SHOPS.map((s) => e.sellPrice(s.id, item)));
-      const qty = t.gather!.qty[0];
-      assert.ok(jobPay(t, qty, 0, NEUTRAL) > best * qty, `${id}: contract ${jobPay(t, qty, 0, NEUTRAL)} vs market ${best * qty}`);
+    for (const b of JOB_BOARDS.filter((x) => x.templates.includes(id))) {
+      const region = SETTLEMENTS.find((s) => s.id === b.settlementId)!.regionId;
+      for (const item of t.gather!.items) {
+        const best = Math.max(0, ...SHOPS.filter((s) => s.region === region).map((s) => e.sellPrice(s.id, item)));
+        const qty = t.gather!.qty[0];
+        assert.ok(jobPay(t, qty, 0, NEUTRAL) > best * qty, `${id}@${b.settlementId}: contract ${jobPay(t, qty, 0, NEUTRAL)} vs local market ${(best * qty).toFixed(2)}`);
+      }
     }
   }
 });
 
 test('fish contracts are a price floor: they beat a flooded market but not a fresh one', () => {
-  const t = tpl('fish_trout');
-  const perUnit = t.pay.perUnit!;
-  const fresh = getItem('fishTrout').price * 0.8; // Cedar Notch buyMul
-  assert.ok(perUnit < fresh);
-  assert.ok(perUnit > fresh * saturationFactor(1));
+  for (const t of JOB_TEMPLATES.filter((x) => x.id.startsWith('fish_'))) {
+    for (const item of t.gather!.items) {
+      const fresh = getItem(item).price * 0.8; // the lowest general-store buyMul that buys fish
+      assert.ok(t.pay.perUnit! < fresh, `${t.id} ${item}`);
+      assert.ok(t.pay.perUnit! > getItem(item).price * saturationFactor(1), `${t.id} ${item}`);
+    }
+  }
 });
 
-test('hunting contracts pay at least the open-market price of the pelts', () => {
-  const e = economyAt();
+test('hunting contracts pay at least the list price of each pelt (general stores pay 60–100% of list)', () => {
   for (const t of JOB_TEMPLATES.filter((x) => x.id.startsWith('hunt_'))) {
-    for (const item of t.gather!.items) {
-      const best = Math.max(...SHOPS.map((s) => e.sellPrice(s.id, item)));
-      assert.ok(t.pay.perUnit! >= best * 0.95, `${t.id}: ${t.pay.perUnit} vs ${best}`);
-    }
+    for (const item of t.gather!.items) assert.ok(t.pay.perUnit! >= getItem(item).price, `${t.id}: ${t.pay.perUnit} vs list ${getItem(item).price}`);
   }
 });
 

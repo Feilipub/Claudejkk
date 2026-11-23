@@ -184,11 +184,25 @@ export class Player extends Entity {
   }
 
   private moveBy(dx: number, dy: number, game: Game): void {
+    // (dx may be redirected by the doorway funnel below)
     const W = game.world;
     const r = 3;
     const blocked = (x: number, y: number) => W.blockedPx(x - r, y) || W.blockedPx(x + r, y) || W.blockedPx(x, y - 2) || W.blockedPx(x, y + 2);
     const x0 = this.x;
     const y0 = this.y;
+    // Doorways funnel: pushing into a facade within a tile of its door slides you onto the door
+    // (phones can't line up to the pixel). Also lets you walk out of a doorway you're standing in.
+    if (dy !== 0 && blocked(this.x, this.y + dy)) {
+      const b = W.buildingAtPx(this.x, this.y + dy + (dy > 0 ? 6 : -6));
+      if (b) {
+        const doorCx = b.doorX * 16 + 8;
+        const onDoorRow = Math.abs(this.y + dy - (b.doorY * 16 + 8)) < 20;
+        if (onDoorRow && Math.abs(this.x - doorCx) <= 22 && Math.abs(this.x - doorCx) > 1) {
+          this.x += Math.sign(doorCx - this.x) * Math.min(Math.abs(doorCx - this.x), Math.max(1.5, Math.abs(dy) * 2));
+          dx = 0;
+        }
+      }
+    }
     if (!blocked(this.x + dx, this.y)) this.x += dx;
     if (!blocked(this.x, this.y + dy)) this.y += dy;
     const want = Math.hypot(dx, dy);

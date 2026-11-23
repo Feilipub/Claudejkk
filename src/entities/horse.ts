@@ -305,6 +305,8 @@ export class HorseEntity extends Entity {
     this.brainTimer -= dt;
     // Tie state changed under the brain (tied or untied by the player): rethink now so the HUD label is true.
     if (this.brain.state === 'tied' ? !this.data.tiedAt : !!this.data.tiedAt && this.brain.state !== 'spooked') this.brainTimer = 0;
+    // A sleeping horse wakes when its owner walks up to it (so care actions never happen "asleep").
+    if (this.brain.state === 'sleep' && this.data.owner === 'player' && Math.hypot(game.player.x - this.x, game.player.y - this.y) < 30) this.wake('Awake');
     if (this.rearT > 0) {
       this.speed = approach(this.speed, 0, 200 * dt);
       return;
@@ -405,6 +407,13 @@ export class HorseEntity extends Entity {
     }
     const rate = this.speed > 60 ? this.stats.turnFast : this.stats.turnSlow;
     this.heading = turnToward(this.heading, a, rate * dt);
+  }
+
+  /** Leave sleep/rest for a short idle so the HUD label and whistle response are truthful. */
+  wake(label = 'Awake'): void {
+    if (this.brain.state !== 'sleep' && this.brain.state !== 'rest') return;
+    this.brain = { state: 'idle', target: null, gait: 'halt', duration: 10, label };
+    this.brainTimer = 10;
   }
 
   /** Move along heading with collision. Returns true if blocked. */
