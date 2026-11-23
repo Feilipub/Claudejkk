@@ -1012,7 +1012,9 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
   if (view === 'front') {
     const legF = P.legLen * s * 0.8;
     const chestY = gy - legF + bob; // where the forelegs leave the chest
-    const croupTop = chestY - depth; // far end of the back
+    // Seen from the front the back is more foreshortened than from behind: the head, not the
+    // barrel, should own the silhouette.
+    const croupTop = chestY - depth * 0.86; // far end of the back
     const midY = (chestY + croupTop) / 2;
     const seatY = croupTop + depth * 0.44;
     // Tail tip flicks out above the croup.
@@ -1073,7 +1075,7 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     const earTip = poll - 4.4 * s * earUp;
     // Ears: a crisp 1px inner outline parts them from the back behind them (the barrel there is
     // the same colour), dark inside the cup. Dark coats get the cool rim instead of a dark line.
-    const sep = L.rim ?? shade(L.body[0], -0.45);
+    const sep = L.rim ?? shade(L.body[0], -0.62);
     for (const side of [-1, 1]) {
       const ex0 = cx + side * hw * 0.15;
       const ex1 = cx + side * hw * 1.0;
@@ -1097,8 +1099,9 @@ function paintFrontBack(c: Ctx, L: Look, P: Proportions, view: 'front' | 'back',
     ];
     // The head casts a shadow down the chest and is rimmed so it separates from the body: a dark
     // rim on light coats, a cool sky rim along the lit (left) side on dark coats.
-    ellipse(c, cx + 1, poll + hl * 0.72, hw * 1.5, hl * 0.45, dark);
-    poly(c, face(1.1), sep);
+    ellipse(c, cx + 1, poll + hl * 0.72, hw * 1.55, hl * 0.45, deep);
+    if (L.rim) poly(c, face(1.2), deep);
+    poly(c, face(L.rim ? 0.8 : 1.2), sep);
     poly(c, face(0), mid);
     // Value steps down the face: lit forehead, mid nasal bone, dark soft muzzle; off cheek in shade.
     poly(c, [[cx - hw * 0.95, poll + 0.8], [cx + hw * 0.6, poll + 0.8], [cx + hw * 0.4, poll + hl * 0.38], [cx - hw * 0.5, poll + hl * 0.55], [cx - hw * 0.95, poll + hl * 0.32]], light);
@@ -1305,7 +1308,7 @@ function paletteFor(L: Look): string[] {
   const pal = [shade(L.body[0], -0.28), L.hi, shade(L.body[1], -0.1), shade(L.body[1], -0.2), shade(L.body[1], -0.18), shade(L.body[1], 0.12), shade(L.body[1], -0.25), shade(L.mane[1], 0.18), shade(L.hoof, -0.25), '#b5a68a', shade('#b5a68a', -0.25), ...L.body, ...L.mane, L.white, L.hoof, L.eye, shade(L.body[0], -0.5), '#d8d4cc', shade(L.body[1], -0.08)];
   if (L.points) pal.push(L.points, shade(L.points, -0.2));
   if (L.rim) pal.push(L.rim);
-  else pal.push(shade(L.body[0], -0.45));
+  else pal.push(shade(L.body[0], -0.62));
   if (L.spot) pal.push(L.spot, shade(L.spot, -0.15));
   if (L.pattern === 'sabino') pal.push(mix(L.body[1], L.white, 0.7));
   if (L.dorsal) pal.push(L.dorsal);

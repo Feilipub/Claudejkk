@@ -100,6 +100,13 @@ export function readableHair(hair: string, skin: string): { hair: string; hairL:
     const base = mix(hair, '#36303e', dark ? 0.55 : 0.4);
     return { hair: base, hairL: mix(base, '#867a96', dark ? 0.5 : 0.4), hairD: mix(hair, '#1c1822', 0.4) };
   }
+  if (hair !== WHITE_HAIR && hair !== GREY_HAIR && Math.abs(lh - luma(skin)) < 0.14) {
+    // Fair hair on fair skin: deepen the body of the hair to a gold-brown
+    // and keep the original colour as its highlight, so beard and fringe
+    // don't dissolve into the face.
+    const base = mix(hair, '#8a6430', 0.42);
+    return { hair: base, hairL: hair, hairD: shade(base, -0.3) };
+  }
   return { hair, hairL: shade(hair, hair === WHITE_HAIR ? 0.2 : 0.22), hairD: shade(hair, -0.25) };
 }
 
