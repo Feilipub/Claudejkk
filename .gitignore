@@ -175,3 +175,8 @@ $RECYCLE.BIN/
 # the project root. Anchored so a reports/ folder elsewhere stays tracked.
 /reports/
 /test-results/
+
+# === Playtest sessions (AI playtesters) ===
+# Hundreds of raw session screenshots per run: keep the written reports, not the frames.
+production/qa/playtests/**/*.png
+production/qa/playtests/**/daemon.log
