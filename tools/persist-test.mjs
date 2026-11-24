@@ -9,7 +9,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.woff2': 'font/woff2' };
 const srv = createServer((req, res) => {
   const p = (req.url ?? '/').split('?')[0];
-  try { res.writeHead(200, { 'Content-Type': types[extname(p)] ?? 'application/octet-stream' }); res.end(readFileSync(join('dist', p === '/' ? 'index.html' : p))); }
+  try { res.writeHead(200, { 'Content-Type': types[extname(p)] ?? 'application/octet-stream' }); res.end(readFileSync(join(process.env.WF_OUT || 'dist', p === '/' ? 'index.html' : p))); }
   catch { res.writeHead(404); res.end(); }
 }).listen(0);
 const url = `http://localhost:${srv.address().port}/index.html`;
@@ -45,7 +45,7 @@ await page.evaluate(() => {
   g.setFlag('persist_marker', 'yes');
   g.rep.add('honor', 12);
   g.discoverPoi('eagleRock', true);
-  g.economy.saturation.peltDeer = 0.4;
+  g.economy.saturation['dustfall:peltDeer'] = 0.4; // per-region key (economy.load drops legacy region-less keys)
   g.save('slot2', false);
 });
 const before = await snap();

@@ -207,6 +207,20 @@ export class QuestSystem {
       const live = this.game.npcLocation(o.target);
       if (live) return live;
     }
+    // A horse to spot roams: the marker follows the nearest live one before the authored spot.
+    if (o.type === 'spot' && o.target) {
+      const p = this.game.player;
+      let best: { x: number; y: number } | null = null;
+      let bd = Infinity;
+      for (const h of this.game.horsesTagged(o.target)) {
+        const d = Math.hypot(h.x - p.x, h.y - p.y);
+        if (d < bd) {
+          bd = d;
+          best = { x: h.x, y: h.y };
+        }
+      }
+      if (best) return best;
+    }
     if (o.x !== undefined && o.y !== undefined) return { x: o.x * 16 + 8, y: o.y * 16 + 8 };
     if ((o.type === 'goto' || o.type === 'discover') && o.target) {
       const p = POIS.find((x) => x.id === o.target);
@@ -239,6 +253,12 @@ export class QuestSystem {
         case 'discover':
           if (o.target && g.discovered.has(o.target)) this.completeObjective(q, o.id);
           break;
+        case 'spot': {
+          // Done only when the horse is actually near — arriving at the flats with the herd out of sight does not count.
+          const r = (o.radius ?? 8) * 16;
+          if (o.target && g.horsesTagged(o.target).some((h) => Math.hypot(h.x - p.x, h.y - p.y) < r)) this.completeObjective(q, o.id);
+          break;
+        }
         case 'collect':
           if (o.target && p.inv.count(o.target) >= (o.count ?? 1)) this.completeObjective(q, o.id);
           break;

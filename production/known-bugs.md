@@ -42,7 +42,7 @@ Last updated: 2026-11-23. Severity: S1 blocker · S2 major · S3 minor · S4 cos
 | WF-B20 | Medium | "Hold up (rob)" sits next to "Greet" in the traveller prompt; a mis-tap on a phone is a crime. Needs a confirmation step. | Diego, Lucas |
 | WF-B21 | Medium | Shops have no opening hours feedback: at night the door is closed with no "Closed" notice. | Lucas |
 | WF-B22 | Low | Speech bubbles can overlap the interaction prompt and each other on a phone. | Rafael, Lucas |
-| WF-B23 | Low | The "Pale Mare" first objective completes on arriving at Mustang Flats even if the herd is out of sight; the mare spawns correctly (verified) but the player may not see her. | Lucas |
+| ~~WF-B23~~ | Low | **Fixed 2026-11-24.** The "Pale Mare" first objective completed on arriving at Mustang Flats even if the herd was out of sight. New `spot` objective type: it completes only when a horse tagged `pale_mare` is within 8 tiles, and the tracker follows the live mare. Guard: `npm run test:side` ("spot: spotted at 40px"). | Lucas |
 | WF-B24 | Low | Roofs of deep buildings (Port Ashby) still dominate the screen; building depth comes from the settlement layout. | buildings specialist |
 | WF-B25 | Low | Foals reuse the adult horse drawing scaled down. | horses specialist |
 | WF-B26 | Low | Interpolated code strings are not yet translated until the tr`` refactor lands (in progress). | lead |
@@ -57,3 +57,6 @@ Last updated: 2026-11-23. Severity: S1 blocker · S2 major · S3 minor · S4 cos
 | WF-B31 | Low | Riding on a phone left an empty prompt box at the bottom (the keyboard riding hints row was hidden by CSS but the box stayed). | The hint row is not emitted on touch. | Screenshot `production/qa/evidence/mobile-controls/03-riding.png`. |
 | WF-B32 | Low | The sprite facing flickered between two directions when the thumb sat near a diagonal. | `facing4Sticky` hysteresis (0.2 rad). | `touch-check`: 0 facing changes over 115 frames on a diagonal. |
 Also: stick deflection now scales walking speed (a half-pushed thumb walks, a full push runs at full speed; keyboard unchanged).
+
+## QA tooling note (2026-11-24)
+`tools/smoke.mjs`, `story-test.mjs`, `story-full.mjs` and `persist-test.mjs` served `dist/` regardless of `WF_OUT`, so a run "against a scratch build" silently tested whatever `dist/` last held. All four now honour `WF_OUT`. The persist test also still seeded a legacy region-less saturation key (`peltDeer`), which `economy.load` drops by design since saturation became per-region; it now seeds `dustfall:peltDeer`.

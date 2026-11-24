@@ -14,7 +14,7 @@ mkdirSync(out, { recursive: true });
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.woff2': 'font/woff2' };
 const srv = createServer((req, res) => {
   const p = (req.url ?? '/').split('?')[0];
-  try { res.writeHead(200, { 'Content-Type': types[extname(p)] ?? 'application/octet-stream' }); res.end(readFileSync(join('dist', p === '/' ? 'index.html' : p))); }
+  try { res.writeHead(200, { 'Content-Type': types[extname(p)] ?? 'application/octet-stream' }); res.end(readFileSync(join(process.env.WF_OUT || 'dist', p === '/' ? 'index.html' : p))); }
   catch { res.writeHead(404); res.end(); }
 }).listen(0);
 const browser = await chromium.launch();
@@ -195,6 +195,16 @@ while (guard++ < 160) {
         // Find an NPC whose dialogue sets this flag.
         for (const t of g.content.DIALOGUE) if (JSON.stringify(t).includes(`"setFlag":"${o.target}"`)) { g.player.money = Math.max(g.player.money, 100); const r = await talk(t.npc, `"setFlag":"${o.target}"`); if (g.flags[o.target]) return r + ' (set ' + o.target + ')'; }
         return 'flag ' + o.target + ' not settable';
+      }
+      case 'spot': {
+        if (!g.horsesTagged(o.target).length) {
+          const enc = g.content.ENCOUNTERS.find((e) => (e.horses ?? []).some((h) => h.tag === o.target));
+          if (enc) await tp(enc.x * 16, enc.y * 16);
+        }
+        const h = g.horsesTagged(o.target)[0];
+        if (!h) return 'no horse tagged ' + o.target;
+        await tp(h.x + 40, h.y);
+        return 'spotted at ' + Math.round(Math.hypot(g.player.x - h.x, g.player.y - h.y)) + 'px';
       }
       case 'lead': {
         const hs = g.horsesTagged(o.target);

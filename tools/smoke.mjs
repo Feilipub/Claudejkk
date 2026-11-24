@@ -16,7 +16,7 @@ const srv = createServer((req, res) => {
   const p = (req.url ?? '/').split('?')[0];
   try {
     res.writeHead(200, { 'Content-Type': types[extname(p)] ?? 'application/octet-stream' });
-    res.end(readFileSync(join('dist', p === '/' ? 'index.html' : p)));
+    res.end(readFileSync(join(process.env.WF_OUT || 'dist', p === '/' ? 'index.html' : p)));
   } catch {
     res.writeHead(404);
     res.end();

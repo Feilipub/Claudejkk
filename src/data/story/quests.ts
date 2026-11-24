@@ -405,7 +405,7 @@ export const QUESTS: QuestDef[] = [
         journal:
           'Gideon says she\'s white as a bleached skull, runs at the back of the herd so she can see everything, and has broken three lariats and one man\'s collarbone. Mustang Flats is west of the ranch. Bring a rope, he says, and more patience than rope.',
         onEnter: [{ spawnEncounter: 'enc_pale_mare' }],
-        objectives: [{ id: 'flats', type: 'goto', text: 'Look for the Pale Mare on Mustang Flats', x: 190, y: 390, radius: 14 }],
+        objectives: [{ id: 'flats', type: 'spot', target: 'pale_mare', text: 'Look for the Pale Mare on Mustang Flats', x: 190, y: 390, radius: 8 }],
         next: 'catch',
       },
       {

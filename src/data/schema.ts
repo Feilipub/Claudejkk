@@ -116,6 +116,7 @@ export type ObjectiveType =
   | 'bond' // main horse reaches bond level `count`
   | 'flag' // flag `target` is truthy (set by dialogue/effects/scripts)
   | 'lead' // bring horses tagged `target` to (x,y) radius
+  | 'spot' // a horse tagged `target` comes within radius tiles of the player (you have actually seen it); marker follows the live horse, else (x,y)
   | 'buy' // buy item `target`
   | 'discover' // discover POI `target`
   | 'race' // win race `target`
