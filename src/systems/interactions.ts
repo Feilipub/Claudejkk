@@ -157,7 +157,10 @@ export class InteractionSystem {
         y: h.y - 40,
         actions: [
           { label: 'Greet', run: () => { const town = SETTLEMENTS.filter((st) => st.kind === 'town' || st.kind === 'city').sort((a, b) => Math.hypot(a.x * 16 - h.x, a.y * 16 - h.y) - Math.hypot(b.x * 16 - h.x, b.y * 16 - h.y)).find((st) => Math.hypot(st.x * 16 - h.x, st.y * 16 - h.y) > 600); const hr = g.clock.hour; const hello = hr < 12 ? 'Mornin\'.' : hr < 18 ? 'Afternoon.' : 'Evenin\'.'; const lines = [hello, town ? `Road's clear to ${town.name}.` : 'Quiet road today.', 'Watch for rattlers past the wash.', 'Fine animal you\'ve got.', 'Rain coming, I\'d wager.']; g.notify(`“${lines[Math.floor(Math.random() * lines.length)]}”`, 'info'); h.speed = Math.min(h.speed, 20); } },
-          { label: 'Hold up (rob)', run: () => { const n = g.dismountNpcRider(h); if (n) { n.setState('surrender'); g.law.reportCrime('robbery', n.x, n.y, n.id); g.player.money += 3 + Math.random() * 10; g.notify('You take what they carry.', 'bad'); } } },
+          { label: 'Hold up (rob)', run: () => g.ui.choice('Draw on this traveller and rob them? Witnesses will run for the law.', [
+            { label: 'Do it', enabled: true, run: () => { const n = g.dismountNpcRider(h); if (n) { n.setState('surrender'); g.law.reportCrime('robbery', n.x, n.y, n.id); g.player.money += 3 + Math.random() * 10; g.notify('You take what they carry.', 'bad'); } } },
+            { label: 'Never mind', enabled: true, run: () => undefined },
+          ]) },
         ],
       };
     }

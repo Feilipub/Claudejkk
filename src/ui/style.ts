@@ -306,4 +306,6 @@ body.has-touch .modal .cards { gap: 4px; margin: 2px 0; }
 body.has-touch .modal h2 { font-size: 22px; margin: 0 0 2px; }
 body.has-touch .modal .sub { margin-bottom: 4px; }
 body.has-touch .modal p { margin: 4px 0; }
+/* On a phone the prompt is the thing you are reading: speech bubbles step back while it is up. */
+body.has-touch.prompt-open .bubble { opacity: 0.35; }
 `;

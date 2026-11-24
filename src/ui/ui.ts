@@ -8,7 +8,7 @@ import { getBreed } from '../data/breeds.ts';
 import { getCoat, MANE_STYLES, PATTERN_NAMES, TAIL_STYLES } from '../data/coats.ts';
 import { getItem, ITEMS, type HorseSlot } from '../data/items.ts';
 import { getTrait } from '../data/personalities.ts';
-import { getShop, SERVICE_PRICES, type Service } from '../data/shops.ts';
+import { getShop, SERVICE_PRICES, type Service, shopHours, shopOpenAt } from '../data/shops.ts';
 import { POIS, REGIONS, SETTLEMENTS, WORLD_H, WORLD_W } from '../data/world.ts';
 import { JOB_BOARDS } from '../data/jobs.ts';
 import type { HorseEntity } from '../entities/horse.ts';
@@ -19,7 +19,7 @@ import { appraise } from '../horse/economy.ts';
 import { bondLevel, maxHealth, maxStamina, rawStat, rideStats, statWord } from '../horse/stats.ts';
 import { horseSprites, HW, HH } from '../render/horseSprite.ts';
 import { portrait, PORTRAIT_H, PORTRAIT_W } from '../render/portrait.ts';
-import { detectLocale, L, LOCALES, setLocale, translateDom, type Locale } from '../core/i18n.ts';
+import { detectLocale, L, LOCALES, setLocale, tr, translateDom, type Locale } from '../core/i18n.ts';
 import { PT_BR } from '../data/locale/pt-BR.ts';
 import { GROUND } from '../world/tiles.ts';
 import type { OpenDialogue } from '../systems/dialogue.ts';
@@ -347,9 +347,11 @@ export class UI {
     if (p.mount && !this.modalOpen) lines.push(`<div class="pa kbd-only"><span class="key">F</span>Dismount &nbsp;<span class="key">Shift</span>Faster <span class="key">Ctrl</span>Slower <span class="key">Space</span>Jump</div>`);
     if (!lines.length) {
       this.promptEl.style.display = 'none';
+      document.body.classList.remove('prompt-open');
       return;
     }
     this.promptEl.style.display = '';
+    document.body.classList.add('prompt-open');
     const html = `${t ? `<div class="pt">${esc(L(t.title))}</div>${t.subtitle ? `<div class="ps">${esc(L(t.subtitle))}</div>` : ''}` : ''}${lines.join('')}`;
     if (this.promptEl.innerHTML !== html) {
       this.promptEl.innerHTML = html;
@@ -968,6 +970,12 @@ export class UI {
     const g = this.game;
     const def = getShop(shopId);
     if (!def) return;
+    if (!shopOpenAt(def, g.clock.hour)) {
+      const [o] = shopHours(def);
+      const h12 = o % 12 === 0 ? 12 : o % 12;
+      this.notify(tr`${def.name} is closed. Opens at ${h12} ${o < 12 ? 'a.m.' : 'p.m.'}`, 'info');
+      return;
+    }
     if (g.dialogue.open) g.dialogue.close();
     let tab = def.horses || def.services.includes('stable') ? 'stable' : 'buy';
     if (Object.keys(def.stock).length) tab = 'buy';

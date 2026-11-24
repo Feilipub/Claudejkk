@@ -24,4 +24,7 @@ export const UI_PT: Record<string, string> = {
   'Pick up at least a trot to jump.': 'É preciso pelo menos um trote para pular.',
   'made around here — cheap': 'produzido por aqui — barato', 'scarce here — dear': 'escasso aqui — caro',
   'market flooded — prices low': 'mercado inundado — preço baixo', 'selling steadily — price slipping': 'vendendo bastante — preço caindo', 'in demand here': 'procurado por aqui',
+  'Draw on this traveller and rob them? Witnesses will run for the law.': 'Sacar a arma e assaltar este viajante? As testemunhas vão correr para a lei.',
+  'Do it': 'Fazer isso', 'Never mind': 'Deixa para lá',
+  '{0} is closed. Opens at {1} {2}': '{0} está fechado. Abre às {1} {2}',
 };

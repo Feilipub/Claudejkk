@@ -6,6 +6,8 @@ export type Service = 'stable' | 'vet' | 'shoe' | 'groom' | 'rent' | 'room' | 'b
 
 export interface ShopDef {
   id: string;
+  /** Opening hours [open, close) in game hours; close may exceed 24 for places open past midnight. Defaults by kind (see shopHours). */
+  hours?: [number, number];
   name: string;
   region: string;
   priceMul: number;
@@ -80,6 +82,24 @@ export function getShop(id: string): ShopDef | undefined {
 }
 
 /** Service prices in dollars. */
+/** Opening hours for a shop: explicit `hours`, else a sensible default by kind of business. */
+export function shopHours(def: ShopDef): [number, number] {
+  if (def.hours) return def.hours;
+  if (def.id.startsWith('hotel')) return [0, 24];
+  if (def.id.startsWith('saloon') || def.id.startsWith('cantina')) return [10, 26];
+  if (def.id.startsWith('doctor')) return [7, 22];
+  if (def.id.startsWith('bank') || def.id.startsWith('telegraph') || def.id.startsWith('assay') || def.id.startsWith('land')) return [8, 18];
+  if (def.id.startsWith('stable') || def.id.startsWith('livery')) return [6, 21];
+  return [7, 20];
+}
+
+/** Is the shop open at `hour` (0–24, fractional)? */
+export function shopOpenAt(def: ShopDef, hour: number): boolean {
+  const [o, c] = shopHours(def);
+  if (c >= 24) return hour >= o || hour < c - 24;
+  return hour >= o && hour < c;
+}
+
 export const SERVICE_PRICES: Record<Service, number> = {
   stable: 0.5, vet: 2.5, shoe: 1.5, groom: 0.25, rent: 3, room: 1, bath: 0.5, train: 2, customize: 3, repair: 1, drink: 0.25, meal: 0.75, blackjack: 0, poker: 0, sellHorse: 0, stage: 2,
 };
