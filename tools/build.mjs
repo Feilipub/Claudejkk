@@ -11,7 +11,7 @@ const serve = process.argv.includes('--serve');
 const OUT = process.env.WF_OUT || 'dist';
 mkdirSync(`${OUT}/fonts`, { recursive: true });
 
-const entries = { game: 'src/main.ts', gallery: 'src/dev/gallery.ts' };
+const entries = { game: 'src/main.ts', gallery: 'src/dev/gallery.ts', ...(existsSync('src/dev/audiolab.ts') ? { audiolab: 'src/dev/audiolab.ts' } : {}) };
 const result = await esbuild.build({
   entryPoints: entries,
   bundle: true,
@@ -34,6 +34,7 @@ for (const f of readdirSync('assets/fonts')) copyFileSync(join('assets/fonts', f
 const html = readFileSync('web/index.html', 'utf8');
 writeFileSync(`${OUT}/index.html`, html);
 writeFileSync(`${OUT}/gallery.html`, html.replace('game.js', 'gallery.js'));
+if (existsSync('src/dev/audiolab.ts')) writeFileSync(`${OUT}/audiolab.html`, html.replace('game.js', 'audiolab.js').replace('<title>Wild Frontier</title>', '<title>Wild Frontier — Audio Lab</title>'));
 
 // Single-file build: inline fonts as base64 and the JS bundle.
 let single = html;
