@@ -165,6 +165,14 @@ Five specialists, each owning one area: horses, characters and portraits, terrai
 - Horses: 3 body templates by breed, 18 coats by palette swap, drawn pattern masks, per-leg markings, tack in all views, all gaits, lie/sleep pose.
 - Wildlife: 11 quadrupeds, rabbit, 5 birds, snake redrawn; UI: wood-and-brass frames, leather HUD plaques, pixel icons, pressed-state buttons, touch buttons with icons.
 
+### Mobile controls hotfix (after the owner's report: "joystick e movimentação muito bugados")
+- The phone menu bar was laid out over the joystick corner, so every attempt to walk opened a menu (WF-B27). It now sits top centre under the compass; icons only below 820 px wide; two rows of four on tiny phones.
+- The joystick is claimed by where the thumb lands (document level), not by which element it hits: a thumb on a notification or the prompt still steers. The control layer is fixed to the real screen, so the ring sits under the thumb on notched phones (WF-B30).
+- A ridden horse now answers a real, trembling thumb: rein lag restarts only on a new direction (`core/steer.ts`), and a slow sweep of the thumb is followed continuously (WF-B28).
+- Walking into a wall or fence no longer creeps sideways; the doorway funnel only engages when you push at the facade; the sprite facing has hysteresis on diagonals; a half-pushed thumb walks instead of running (WF-B29, WF-B32).
+- No empty prompt box while riding on a phone (WF-B31).
+- New `npm run test:touch` (`tools/touch-check.mjs`): an emulated phone with per-frame thumb jitter checks all of the above and keeps screenshots in `production/qa/evidence/mobile-controls/`.
+
 ### Mobile
 - Whole device pixels per game pixel on any DPR; Camera setting (Far/Normal/Close); viewport-fit=cover + safe-area insets; app-capable metas; rotate overlay in portrait; fullscreen + landscape lock on first touch (where allowed); scrollable prompt; compact phone HUD; blackjack fits a phone; doorway funnel so you can enter buildings without pixel-perfect alignment.
 

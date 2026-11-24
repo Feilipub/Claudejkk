@@ -40,7 +40,7 @@ with fonts and code inlined. Saves go to the browser's localStorage.
 
 ## Phone and tablet (touch)
 The touch controls appear on their own on touch screens. Play with the phone held sideways.
-- **Move:** put a thumb anywhere on the left half of the screen and drag. A joystick appears where you touch.
+- **Move:** put a thumb anywhere in the lower-left part of the screen and drag. A joystick appears under your thumb, even over a notification or a prompt. A small push walks, a full push goes at speed.
 - **Right-hand buttons:**
   - **E**: talk or interact.
   - **Montar**: mount or dismount.
@@ -51,7 +51,7 @@ The touch controls appear on their own on touch screens. Play with the phone hel
   - **Arma**: draw or holster.
   - **Atirar**: fire where you face. With a weapon drawn, tapping the world also fires there.
   - **◀ ▶**: cycle the prompt options.
-- **Bottom bar:** ☰ pause, save and settings; Mapa; Itens; Cavalo; Diário; Acampar.
+- **Top bar (under the compass):** ☰ pause, save and settings; Map; Items; Horse; Journal; Camp; Lantern; Crouch. Icons only on small phones.
 - **Prompts:** tap any line of an interaction prompt to choose it. Menus and dialogue scroll with a finger.
 - **Map zoom:** the map has + and − buttons. Tap the map to set a waypoint.
 - **Camera:** Settings → Camera lets you choose Far (see more of the world), Normal or Close (bigger sprites). The game renders a whole number of device pixels per game pixel on every phone, so the art stays crisp.

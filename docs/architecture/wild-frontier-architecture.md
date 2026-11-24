@@ -182,10 +182,19 @@ snapped them to pixels. The result read as "smeared". The pipeline is now:
 - The renderer picks a whole number of **device** pixels per game pixel (`physScale`), so art is crisp
   on any DPR; the CSS scale follows from it. A camera setting (Far/Normal/Close) shifts the step.
 - `viewport-fit=cover`; the UI root is inset by `env(safe-area-inset-*)`; `100dvh` body.
-- Touch controls (`ui/touch.ts`): a floating joystick on the left half and action buttons on the right
+- Touch controls (`ui/touch.ts`): a floating joystick in the lower-left and action buttons on the right
   press the same key codes as the keyboard, so gameplay stays input-agnostic. The first touch requests
   fullscreen and a landscape lock where the browser allows it; portrait shows a rotate overlay.
-- Phone layout is driven by `body.has-touch` rules in `ui/style.ts`.
+- The stick is claimed at the **document** level by where the thumb lands (the `.tzone` rect), not by
+  which element it hits, so a thumb on a notification or the prompt still steers; only buttons, menus
+  and dialogue keep their own touches. The control layer is `position: fixed` to the real screen (the
+  HUD root is inset by the safe area), so the ring sits under the thumb on notched phones.
+- `core/steer.ts` holds the input-feel rules a real thumb needs and the keyboard never exposed: rein lag
+  that only restarts on a *new* direction (not on per-frame tremble), sticky 4-way facing, analog walk
+  speed. Unit-tested; `tools/touch-check.mjs` drives an emulated phone with a trembling thumb and keeps
+  screenshots in `production/qa/evidence/mobile-controls/`.
+- Phone layout is driven by `body.has-touch` rules in `ui/style.ts`. The menu bar sits top centre under
+  the compass; nothing that takes touches may sit over the joystick corner (WF-B27).
 
 ## 12. Localisation
 

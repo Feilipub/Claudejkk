@@ -344,7 +344,8 @@ export class UI {
     }
     const mountable = !p.mount && g.nearestRideableHorse(p.x, p.y, 28);
     if (mountable && !this.modalOpen) lines.push(`<div class="pa"><span class="key">F</span>Mount ${esc(mountable.data.name)}</div>`);
-    if (p.mount && !this.modalOpen) lines.push(`<div class="pa kbd-only"><span class="key">F</span>Dismount &nbsp;<span class="key">Shift</span>Faster <span class="key">Ctrl</span>Slower <span class="key">Space</span>Jump</div>`);
+    // Riding hints are for the keyboard; on a phone the buttons are the hints (an empty box would be left otherwise).
+    if (p.mount && !this.modalOpen && !document.body.classList.contains('has-touch')) lines.push(`<div class="pa kbd-only"><span class="key">F</span>Dismount &nbsp;<span class="key">Shift</span>Faster <span class="key">Ctrl</span>Slower <span class="key">Space</span>Jump</div>`);
     if (!lines.length) {
       this.promptEl.style.display = 'none';
       document.body.classList.remove('prompt-open');

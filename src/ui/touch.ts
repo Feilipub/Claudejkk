@@ -45,14 +45,20 @@ const MENUS: Btn[] = [
   { label: 'Crouch', code: 'KeyV', icon: 'crouch', cap: true },
 ];
 
+/** Elements that keep their own touches even inside the stick zone. */
+const STICK_EXEMPT = '.tbtn, button, input, select, textarea, a, .modal, .dialogue, .menu-bg, #rotate';
+
 export class TouchControls {
   private root: HTMLElement;
+  private zone: HTMLElement;
   private stick: HTMLElement;
   private knob: HTMLElement;
   private stickId: number | null = null;
   private ox = 0;
   private oy = 0;
   shown = false;
+  /** True while a menu, dialogue or the title screen owns the screen (controls hidden). */
+  private hidden = true;
   private game: Game;
 
   constructor(game: Game, layer: HTMLElement) {
@@ -63,11 +69,14 @@ export class TouchControls {
     layer.appendChild(this.root);
     this.stick = this.root.querySelector('.tstick')!;
     this.knob = this.root.querySelector('.tknob')!;
-    const zone = this.root.querySelector('.tzone') as HTMLElement;
-    zone.addEventListener('touchstart', (e) => this.stickStart(e), { passive: false });
-    zone.addEventListener('touchmove', (e) => this.stickMove(e), { passive: false });
-    zone.addEventListener('touchend', (e) => this.stickEnd(e));
-    zone.addEventListener('touchcancel', (e) => this.stickEnd(e));
+    this.zone = this.root.querySelector('.tzone') as HTMLElement;
+    // The stick is driven from the document by *where* the thumb lands, not by which element
+    // it happens to hit: a thumb resting on a notification, the prompt or the canvas still
+    // steers. Buttons, menus and dialogue are the only things that take the touch instead.
+    document.addEventListener('touchstart', (e) => this.stickStart(e), { passive: false });
+    document.addEventListener('touchmove', (e) => this.stickMove(e), { passive: false });
+    document.addEventListener('touchend', (e) => this.stickEnd(e));
+    document.addEventListener('touchcancel', (e) => this.stickEnd(e));
     const make = (host: HTMLElement, b: Btn) => {
       const el = document.createElement('button');
       el.className = 'tbtn ' + (b.cls ?? '') + (b.icon ? ` ti ti-${b.icon}` : '');
@@ -129,6 +138,7 @@ export class TouchControls {
   update(): void {
     const g = this.game;
     const hidden = !this.shown || g.titleMode || g.ui.modalOpen;
+    this.hidden = hidden;
     this.root.style.display = hidden ? 'none' : '';
     if (hidden && this.stickId !== null) this.release();
   }
@@ -144,23 +154,39 @@ export class TouchControls {
     g.input.mouseY = r.height / 2 + Math.sin(a) * 140;
   }
 
+  /** Does this touch belong to the joystick? Inside the stick zone and not on a control that takes touches itself. */
+  private claims(t: Touch): boolean {
+    const z = this.zone.getBoundingClientRect();
+    if (t.clientX < z.left || t.clientX > z.right || t.clientY < z.top || t.clientY > z.bottom) return false;
+    const el = t.target as HTMLElement | null;
+    return !el?.closest?.(STICK_EXEMPT);
+  }
+
   private stickStart(e: TouchEvent): void {
-    e.preventDefault();
-    if (this.stickId !== null) return;
-    const t = e.changedTouches[0]!;
-    this.stickId = t.identifier;
-    this.ox = t.clientX;
-    this.oy = t.clientY;
-    this.stick.style.left = `${t.clientX}px`;
-    this.stick.style.top = `${t.clientY}px`;
-    this.stick.classList.add('on');
-    this.knob.style.transform = 'translate(-50%,-50%)';
+    if (this.stickId !== null || this.hidden) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i]!;
+      if (!this.claims(t)) continue;
+      e.preventDefault();
+      this.stickId = t.identifier;
+      this.ox = t.clientX;
+      this.oy = t.clientY;
+      // The ring appears under the thumb: position it relative to the control layer, not the page.
+      const rr = this.root.getBoundingClientRect();
+      this.stick.style.left = `${t.clientX - rr.left}px`;
+      this.stick.style.top = `${t.clientY - rr.top}px`;
+      this.stick.classList.add('on');
+      this.knob.style.transform = 'translate(-50%,-50%)';
+      return;
+    }
   }
 
   private stickMove(e: TouchEvent): void {
-    e.preventDefault();
-    for (const t of Array.from(e.changedTouches)) {
+    if (this.stickId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i]!;
       if (t.identifier !== this.stickId) continue;
+      e.preventDefault();
       const R = 56;
       let dx = t.clientX - this.ox;
       let dy = t.clientY - this.oy;
@@ -170,17 +196,22 @@ export class TouchControls {
         dy = (dy / d) * R;
       }
       this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-      this.game.input.touchAxis = { x: dx / R, y: dy / R };
+      const axis = this.game.input.touchAxis;
+      axis.x = dx / R;
+      axis.y = dy / R;
     }
   }
 
   private stickEnd(e: TouchEvent): void {
-    for (const t of Array.from(e.changedTouches)) if (t.identifier === this.stickId) this.release();
+    if (this.stickId === null) return;
+    for (let i = 0; i < e.changedTouches.length; i++) if (e.changedTouches[i]!.identifier === this.stickId) this.release();
   }
 
   private release(): void {
     this.stickId = null;
-    this.game.input.touchAxis = { x: 0, y: 0 };
+    const axis = this.game.input.touchAxis;
+    axis.x = 0;
+    axis.y = 0;
     this.stick.classList.remove('on');
   }
 }

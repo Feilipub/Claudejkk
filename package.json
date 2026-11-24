@@ -14,6 +14,7 @@
     "test:story-full": "node tools/story-full.mjs law production/qa/evidence && node tools/story-full.mjs press production/qa/evidence && node tools/story-full.mjs bribe production/qa/evidence",
     "test:side": "node tools/story-full.mjs law production/qa/evidence side",
     "test:persist": "node tools/persist-test.mjs",
+    "test:touch": "node tools/touch-check.mjs production/qa/evidence/mobile-controls",
     "test:e2e": "npm run build && npm run smoke && npm run test:story && npm run test:persist",
     "gallery": "node tools/build.mjs && node tools/shot.mjs gallery.html production/qa/evidence/horse-gallery.png window.galleryReady 1900 1000"
   },

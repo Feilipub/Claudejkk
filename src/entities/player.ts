@@ -3,7 +3,8 @@ import { freeSpotNear } from './horse.ts';
  * The player character: on-foot movement, mounting/dismounting, riding hand-off
  * to the horse controller, survival stats, weapons and combat, death/respawn.
  */
-import { approach, clamp, facing4 } from '../core/math.ts';
+import { approach, clamp } from '../core/math.ts';
+import { analogSpeed, facing4Sticky } from '../core/steer.ts';
 import { BALANCE } from '../data/balance.ts';
 import { getItem } from '../data/items.ts';
 import type { Game } from '../game.ts';
@@ -14,6 +15,12 @@ import { Inventory } from '../systems/inventory.ts';
 import { Skills } from '../systems/skills.ts';
 import { Entity } from './entity.ts';
 import type { HorseEntity } from './horse.ts';
+
+/** Slip-around candidates (radians off the intended direction), by which side of the obstacle is open. */
+const SLIP_BOTH = [0.7, -0.7, 1.3, -1.3];
+const SLIP_PLUS = [0.7, 1.3];
+const SLIP_MINUS = [-0.7, -1.3];
+const SLIP_NONE: number[] = [];
 
 export interface PlayerStats {
   health: number;
@@ -150,6 +157,7 @@ export class Player extends Entity {
     const encumbered = this.inv.weight > this.inv.capacity;
     if (encumbered) speed *= 0.6;
     const len = Math.hypot(a.x, a.y);
+    speed *= analogSpeed(len); // a half-pushed thumb walks, not sprints
     const tvx = len ? (a.x / len) * speed : 0;
     const tvy = len ? (a.y / len) * speed : 0;
     this.vx = approach(this.vx, tvx, 600 * dt);
@@ -192,7 +200,7 @@ export class Player extends Entity {
     const y0 = this.y;
     // Doorways funnel: pushing into a facade within a tile of its door slides you onto the door
     // (phones can't line up to the pixel). Also lets you walk out of a doorway you're standing in.
-    if (dy !== 0 && blocked(this.x, this.y + dy)) {
+    if (dy !== 0 && Math.abs(dy) >= Math.abs(dx) * 1.2 && blocked(this.x, this.y + dy)) {
       const b = W.buildingAtPx(this.x, this.y + dy + (dy > 0 ? 6 : -6));
       if (b) {
         const doorCx = b.doorX * 16 + 8;
@@ -207,9 +215,18 @@ export class Player extends Entity {
     if (!blocked(this.x, this.y + dy)) this.y += dy;
     const want = Math.hypot(dx, dy);
     if (want > 0 && Math.hypot(this.x - x0, this.y - y0) < want * 0.3) {
-      // Wedged on a post, trunk or corner: slip around it like a person would.
+      // Wedged on a post, trunk or corner: slip around it like a person would — but only
+      // around something narrow. A wall or a fence line has no open ground beside the
+      // contact point, and pushing into one simply stops you (no sideways creep).
       const a0 = Math.atan2(dy, dx);
-      for (const da of [0.7, -0.7, 1.3, -1.3]) {
+      const px = -Math.sin(a0);
+      const py = Math.cos(a0);
+      const ax = x0 + Math.cos(a0) * 5;
+      const ay = y0 + Math.sin(a0) * 5;
+      const openPlus = !blocked(ax + px * 12, ay + py * 12);
+      const openMinus = !blocked(ax - px * 12, ay - py * 12);
+      const order = openPlus && openMinus ? SLIP_BOTH : openPlus ? SLIP_PLUS : openMinus ? SLIP_MINUS : SLIP_NONE;
+      for (const da of order) {
         const tx = x0 + Math.cos(a0 + da) * want * 0.8;
         const ty = y0 + Math.sin(a0 + da) * want * 0.8;
         if (!blocked(tx, ty)) {
@@ -218,21 +235,21 @@ export class Player extends Entity {
           return;
         }
       }
-      // Already overlapping a collider (e.g. spawned or dismounted into one): step straight out.
       if (blocked(x0, y0)) {
+        // Already overlapping a collider (e.g. spawned or dismounted into one): step straight
+        // out, and if that keeps failing for a moment, hop to the nearest clear spot.
         this.x = x0 + dx;
         this.y = y0 + dy;
-      }
-      // Still pinned after a moment of trying: hop to the nearest clear spot.
-      this.pinnedT += game.dt;
-      if (this.pinnedT > 1) {
-        this.pinnedT = 0;
-        const spot = freeSpotNear(game, x0, y0, (x, y) => !blocked(x, y));
-        if (spot) {
-          this.x = spot.x;
-          this.y = spot.y;
+        this.pinnedT += game.dt;
+        if (this.pinnedT > 1) {
+          this.pinnedT = 0;
+          const spot = freeSpotNear(game, x0, y0, (x, y) => !blocked(x, y));
+          if (spot) {
+            this.x = spot.x;
+            this.y = spot.y;
+          }
         }
-      }
+      } else this.pinnedT = 0;
     } else this.pinnedT = 0;
   }
   private pinnedT = 0;
@@ -364,8 +381,12 @@ export class Player extends Entity {
     this.actionAnim = anim;
   }
 
+  /** Current 4-way facing sector, kept with hysteresis so a diagonal thumb does not flip the sprite every frame. */
+  private face: 0 | 1 | 2 | 3 = 1;
+
   private dirFromAngle(): { dir: Dir; flip: boolean } {
-    const f = facing4(this.angle);
+    const f = facing4Sticky(this.angle, this.face);
+    this.face = f;
     if (f === 0) return { dir: 'side', flip: false };
     if (f === 2) return { dir: 'side', flip: true };
     return { dir: f === 1 ? 'down' : 'up', flip: false };

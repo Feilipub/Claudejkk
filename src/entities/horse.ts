@@ -4,7 +4,8 @@
  * frame, reacts to threats/noise, and renders its procedural sprite.
  */
 import { Rng } from '../core/rng.ts';
-import { approach, clamp, turnToward, wrapAngle } from '../core/math.ts';
+import { approach, clamp, turnToward } from '../core/math.ts';
+import { reinCommand, type ReinState } from '../core/steer.ts';
 import { BALANCE } from '../data/balance.ts';
 import { getItem } from '../data/items.ts';
 import { getSpecies } from '../data/wildlife.ts';
@@ -52,8 +53,8 @@ export class HorseEntity extends Entity {
   private distAcc = 0;
   private stepAcc = 0;
   private spurCooldown = 0;
-  private pendingHeading: number | null = null;
-  private pendingTimer = 0;
+  /** Rider's rein command and the lag before the horse answers it (steer.ts: survives a trembling thumb). */
+  private rein: ReinState = { heading: null, timer: 0 };
   /** Pen (corral) bounds in px for stable/trader horses. */
   pen: { x: number; y: number; w: number; h: number } | null = null;
   herdId: string | null = null;
@@ -551,16 +552,10 @@ export class HorseEntity extends Entity {
     }
     if (inp.pressed('slow')) this.gaitLevel = Math.max(1, this.gaitLevel - 1);
 
-    // Desired heading from input, applied after rein lag (responsiveness).
-    if (moving) {
-      const want = Math.atan2(axis.y, axis.x);
-      if (this.pendingHeading === null || Math.abs(wrapAngle(want - this.pendingHeading)) > 0.01) {
-        this.pendingHeading = want;
-        this.pendingTimer = rs.reinLag;
-      }
-    }
-    if (this.pendingTimer > 0) this.pendingTimer -= dt;
-    const desired = this.pendingHeading ?? this.heading;
+    // Desired heading from input, applied after rein lag (responsiveness). Only a new
+    // direction restarts the lag — a thumb on the joystick trembles every frame.
+    reinCommand(this.rein, moving ? Math.atan2(axis.y, axis.x) : null, dt, rs.reinLag);
+    const desired = this.rein.heading ?? this.heading;
 
     // Gait target.
     let gait: Gait = moving ? GAIT_LEVELS[this.gaitLevel]! : 'halt';
@@ -615,7 +610,7 @@ export class HorseEntity extends Entity {
     // Turning: tighter at low speed.
     const gallopFrac = clamp(this.speed / Math.max(1, rs.gaitSpeed.gallop), 0, 1);
     const turnRate = rs.turnSlow + (rs.turnFast - rs.turnSlow) * gallopFrac;
-    if (moving && this.pendingTimer <= 0) {
+    if (moving && this.rein.timer <= 0) {
       // A horse picks its own way around posts, walls and trees rather than ploughing into them.
       let steerTo = desired;
       const look = 12 + Math.abs(this.speed) * 0.18;

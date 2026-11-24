@@ -204,14 +204,16 @@ input.txt { font: 20px 'Fell', serif; padding: 5px 10px; border: 2px solid var(-
 
 /* --- Touch controls (phones/tablets) --- */
 html, body { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
-.touch { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-.touch .tzone { position: absolute; left: 0; bottom: 0; width: 42%; height: 62%; pointer-events: auto; }
+/* Fixed to the real screen (the HUD root is inset by the notch safe area): the ring then sits exactly under the thumb and the stick zone reaches the true corner. */
+.touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+/* Geometry only — touches are claimed by position (touch.ts), so a thumb landing on a notification or the prompt still steers. */
+.touch .tzone { position: absolute; left: 0; bottom: 0; width: 44%; height: 64%; pointer-events: none; }
 /* Joystick: a hollow brass ring (34px grid at 3×) and a brass knob (16px grid at 3×). */
 .touch .tstick { position: absolute; left: 90px; bottom: 90px; width: 102px; height: 102px; margin: -51px 0 0 -51px; border-radius: 50%; background: ${STICK_RING} center / 102px 102px no-repeat; opacity: 0; transition: opacity .15s; pointer-events: none; }
 .touch .tstick.on { opacity: 1; }
 .touch .tknob { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%; background: ${STICK_KNOB} center / 48px 48px no-repeat; transform: translate(-50%,-50%); filter: drop-shadow(0 3px 0 rgba(0,0,0,0.4)); }
-.touch .tbtns { position: absolute; right: 10px; bottom: 12px; width: 240px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; pointer-events: auto; }
-.touch .tmenus { position: absolute; left: 50%; transform: translateX(-50%); top: 44px; display: flex; gap: 4px; pointer-events: auto; padding: 0 2px; background: rgba(46,32,22,0.88); ${leather2x} }
+.touch .tbtns { position: absolute; right: calc(10px + env(safe-area-inset-right, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: 240px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; pointer-events: auto; }
+.touch .tmenus { position: absolute; left: 50%; transform: translateX(-50%); top: calc(44px + env(safe-area-inset-top, 0px)); display: flex; gap: 4px; pointer-events: auto; padding: 0 2px; background: rgba(46,32,22,0.88); ${leather2x} }
 /* Buttons: the same chunky wooden block as the menus (3×), dropping onto its lip when held. */
 .touch .tbtn { pointer-events: auto; position: relative; min-height: 54px; padding: 0 0 2px; color: #f0e2c4; font: 700 15px Georgia, serif; touch-action: none; text-shadow: 0 2px 0 #000; background: none; ${btn('wood', 3)} }
 .touch .tbtn.on { ${btnDown('wood')} padding: 2px 0 0; }
@@ -272,17 +274,23 @@ body.has-touch .kbd-only { display: none !important; }
   body.has-touch .notes { left: 6px; top: 152px; bottom: auto; max-width: 200px; gap: 3px; }
   body.has-touch .note { font-size: 12px; padding: 2px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   body.has-touch .notes .note:nth-last-child(n+4) { display: none; }
-  body.has-touch .banner { font-size: 22px; top: 22%; }
-  /* Prompt: the free middle band between the joystick and the buttons, above the menu bar. */
-  body.has-touch .prompt { left: calc(50% - 31px); bottom: 62px; top: auto; transform: translateX(-50%); min-width: 170px; max-width: 330px; z-index: 4; }
+  body.has-touch .banner { font-size: 22px; top: 27%; }
+  /* Prompt: the free middle band between the joystick and the buttons. */
+  body.has-touch .prompt { left: calc(50% - 31px); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); top: auto; transform: translateX(-50%); min-width: 170px; max-width: 330px; z-index: 4; }
   body.has-touch .prompt .pt { font-size: 13px; }
   body.has-touch .prompt .ps { font-size: 9px; }
   body.has-touch .prompt .pa { font-size: 11px; line-height: 15px; }
   body.has-touch .key { min-width: 15px; font-size: 10px; line-height: 11px; padding: 0 2px; margin-right: 4px; }
-  body.has-touch .touch .tmenus { top: auto; bottom: 4px; left: calc((100% - 272px) / 2); gap: 2px; }
-  body.has-touch .touch .tmenus .tbtn { min-height: 40px; min-width: 40px; }
+  /* Menu bar: top centre under the compass. It must never sit over the joystick corner — a thumb that lands on it opens a menu instead of walking. */
+  body.has-touch .touch .tmenus { top: calc(26px + env(safe-area-inset-top, 0px)); gap: 2px; padding: 0 2px; }
+  /* Icons only on a phone: eight captioned buttons would run into the status plates. Captions return from 820px up. */
+  body.has-touch .touch .tmenus .tbtn { min-height: 28px; min-width: 26px; padding: 0 0 2px; }
+  body.has-touch .touch .tmenus .tbtn small { display: none; }
+  @media (min-width: 820px) { body.has-touch .touch .tmenus .tbtn { min-width: 36px; min-height: 36px; } body.has-touch .touch .tmenus .tbtn small { display: block; } }
+  /* Tiny phones (iPhone SE class): two rows of four in the gap right of the status plates; the prompt rides higher, clear of the buttons. */
+  @media (max-width: 620px) { body.has-touch .touch .tmenus { left: 212px; transform: none; display: grid; grid-template-columns: repeat(4, auto); } body.has-touch .prompt { left: calc(50% - 70px); top: 96px; bottom: auto; } }
   /* Five columns, three rows: the cluster stays low so the tracker above it never collides. */
-  body.has-touch .touch .tbtns { right: 6px; bottom: 6px; width: 262px; gap: 4px; grid-template-columns: repeat(5, 1fr); }
+  body.has-touch .touch .tbtns { right: calc(6px + env(safe-area-inset-right, 0px)); bottom: calc(6px + env(safe-area-inset-bottom, 0px)); width: 262px; gap: 4px; grid-template-columns: repeat(5, 1fr); }
   body.has-touch .touch .tbtn { min-height: 46px; border-width: 6px 6px 8px; border-image-width: 6px 6px 8px; }
   body.has-touch .touch .tbtn small { margin-top: 0; font-size: 8px; line-height: 9px; }
   body.has-touch .touch .tbtn.sw { min-height: 46px; }
