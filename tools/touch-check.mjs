@@ -73,6 +73,24 @@ const bars = await ev(`const r = (s) => { const e = document.querySelector(s); c
 const ov = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
 check(!ov(bars.menus, bars.cores) && !ov(bars.menus, bars.mini) && !ov(bars.menus, bars.zone), `menu bar clear of status plates, minimap and stick zone (bar ${bars.menus.map(Math.round)})`);
 await page.screenshot({ path: `${out}/01-prompt-open.png` });
+// A tap on a prompt row runs that action (the stick must not swallow it); a tap on a menu button opens the menu without a stick ring.
+{
+  const row = await ev(`const r = document.querySelector('.prompt .pa[data-i="0"]'); const b = r.getBoundingClientRect(); return [b.left + 20, b.top + b.height / 2, r.textContent.trim()]`);
+  await ev(`window.__exec = []; const orig = g.interactions.execIndex.bind(g.interactions); g.interactions.execIndex = (i) => { window.__exec.push(i); return orig(i); }`);
+  await page.touchscreen.tap(row[0], row[1]);
+  await sleep(500);
+  const ran = await ev(`return window.__exec`);
+  check(ran.length === 1 && ran[0] === 0, `tapping the prompt row "${row[2]}" runs that action and only once (execIndex calls: ${JSON.stringify(ran)})`);
+  const m = await ev(`const b = document.querySelector('.tmenus .ti-map').getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]`);
+  await page.touchscreen.tap(m[0], m[1]);
+  await sleep(400);
+  const r = await ev(`return [g.ui.modalOpen, document.querySelector('.tstick').classList.contains('on')]`);
+  check(r[0] === true && r[1] === false, `tapping the Map button opens the map and does not start the stick`);
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  if (await ev(`return g.ui.modalOpen`)) await ev(`g.ui.closeModal?.(); document.querySelector('.modal .close, .modal .btn')?.click()`);
+  await sleep(300);
+}
 
 // 3. On foot: moves on a diagonal with a trembling thumb, no facing flicker, stops on release.
 await ev(`window.__s = []; (function samp(){ const p = g.player; window.__s.push([p.x, p.y, p.dir, p.flip, p.mount ? p.mount.heading : null, p.mount ? p.mount.speed : null]); requestAnimationFrame(samp); })()`);
