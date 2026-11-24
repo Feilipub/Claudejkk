@@ -139,6 +139,7 @@ export class SocialSystem {
 
   // --- Gossip ---------------------------------------------------------------------------------
 
+  /** Record a town event for conversations and barks (keeps the latest dozen). */
   addGossip(gs: Gossip): void {
     this.gossip.push(gs);
     if (this.gossip.length > 12) this.gossip.shift();
@@ -181,6 +182,7 @@ export class SocialSystem {
 
   // --- Main tick --------------------------------------------------------------------------------
 
+  /** Per frame: play conversations; every `tickSec`, run the social scan for NPCs near the player. */
   update(dt: number): void {
     const g = this.game;
     for (const c of this.convos) this.advance(c, dt);
@@ -538,11 +540,9 @@ export class SocialSystem {
     const lines: Line[] = [];
     // Strangers to the topic open with a greeting first when they've just met on the street.
     const opener = !group && !kids && choice.id !== 'greet' && !['friend', 'rival', 'family', 'colleague'].includes(choice.id) && Math.random() < 0.5;
-    let speakers = order;
-    if (opener) {
-      lines.push({ who: order[0]!, text: this.fill(pickOf(greet)[0]!, order[0]!, order[1]!) });
-      speakers = [order[1]!, order[0]!, ...order.slice(2)];
-    }
+    // The partner says hello first, so the exchange keeps its roles (A asks, B — e.g. the one with the trade — answers).
+    const speakers = order;
+    if (opener) lines.push({ who: order[1]!, text: this.fill(pickOf(greet)[0]!, order[1]!, order[0]!) });
     ex.forEach((text, k) => {
       const who = speakers[k % speakers.length]!;
       lines.push({ who, text: this.fill(text, speakers[0]!, speakers[1]!, choice.tok) });

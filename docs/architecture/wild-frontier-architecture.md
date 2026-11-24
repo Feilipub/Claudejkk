@@ -52,8 +52,10 @@ src/
   entities/            Entity + SpatialHash, Player, HorseEntity (AI + riding), Npc, Animal
   systems/             quests, dialogue, script (conditions/effects), law, reputation, combat,
                        economy (regional trade, property), jobs (notice boards, 19 job templates),
-                       interactions, camp, activities, taming, horsethief, spawner, social (NPC life),
+                       interactions, camp, activities, taming, horsethief, spawner (+ spawnQuota:
+                       wildlife groups), social (NPC routines, work behaviours, NPC↔NPC talk, memory),
                        skills, save, time, weather
+  data/social.ts       26 occupation routines, relationships, conversation topic pools
   data/jobs.ts         job templates, notice boards, trade goods, homestead plots and improvements
   render/              pixmap (hand-drawn pixel grids + master palette), terrain chunk cache,
                        renderer (lighting/weather/particles), sprite builders: horse, human, portrait,

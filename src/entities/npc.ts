@@ -239,7 +239,7 @@ export class Npc extends Entity {
   private targetKey(game: Game): string {
     const { block, idx } = this.currentBlock(game);
     const m = game.clock.minutes;
-    const step = block.place === 'patrol' ? Math.floor(m / 25) : block.act === 'stroll' || block.act === 'loiter' ? Math.floor(m / 45) : 0;
+    const step = block.place === 'patrol' ? Math.floor(m / SOCIAL_TUNING.patrolStepMin) : block.act === 'stroll' || block.act === 'loiter' ? Math.floor(m / SOCIAL_TUNING.strollStepMin) : 0;
     const wet = this.shouldShelter(game, block) ? 1 : 0;
     const gf = this.def.greetUntilFlag && !game.flags[this.def.greetUntilFlag] ? 'g' : '';
     return `${game.clock.day}|${idx}|${step}|${wet}|${gf}`;
@@ -370,7 +370,7 @@ export class Npc extends Entity {
       case 'street': {
         // Drunks weave down the main street near the saloon; everyone else uses the whole town.
         const pool: { x: number; y: number }[] = block.act === 'stagger' ? [...of('street'), ...tp.doorfronts.filter((d) => d.type === 'saloon' || d.type === 'hotel')] : [...of('street'), ...tp.doorfronts];
-        const step = block.act === 'stroll' || block.act === 'loiter' ? Math.floor(game.clock.minutes / 45) : 0;
+        const step = block.act === 'stroll' || block.act === 'loiter' ? Math.floor(game.clock.minutes / SOCIAL_TUNING.strollStepMin) : 0;
         // Children pick the same play street each day, so they can find each other.
         const salt = block.act === 'play' ? null : `st${idx}:${day}:${step}`;
         r = px(salt === null ? pool[hashString(`${sid}:play:${day}:${idx}`) % pool.length] : pick(pool, salt), true);
@@ -399,7 +399,7 @@ export class Npc extends Entity {
       }
       case 'patrol': {
         const beat: { x: number; y: number }[] = [...of('street', 'guard'), ...tp.doorfronts.filter((d) => BEAT_TYPES.includes(d.type))];
-        if (beat.length) r = px(beat[(hid + Math.floor(game.clock.minutes / 25)) % beat.length], true);
+        if (beat.length) r = px(beat[(hid + Math.floor(game.clock.minutes / SOCIAL_TUNING.patrolStepMin)) % beat.length], true);
         break;
       }
       case 'camp': {
@@ -464,7 +464,7 @@ export class Npc extends Entity {
         break;
       case 'cower': {
         // Hide: duck through the nearest door if there is one close by, then crouch until it's quiet.
-        if (this.stateT < 0.05 && !this.shelter && this.outdoors) this.shelter = nearestShelter(game, this.settlementId, this.x, this.y, 180);
+        if (this.stateT < 0.05 && !this.shelter && this.outdoors) this.shelter = nearestShelter(game, this.settlementId, this.x, this.y, SOCIAL_TUNING.hideSearchRadius);
         const sh = this.shelter;
         if (sh && this.stateT < 7 && Math.hypot(sh.x - this.x, sh.y - this.y) > 6) this.goTo(sh.x, sh.y, dt, game, 75);
         else {
@@ -806,7 +806,7 @@ export class Npc extends Entity {
 
   /** The tool in hand for the current activity (only while doing it, or a bottle on a drunk's walk). */
   private heldProp(game: Game): PropKind | null {
-    if (this.state !== 'schedule' || this.chatWith && this.act !== 'drink') return null;
+    if (this.state !== 'schedule' || (this.chatWith && this.act !== 'drink')) return null;
     const p = ACTS[this.act].prop;
     if (!p) return null;
     if (!this.arrived && this.act !== 'stagger' && this.act !== 'feed') return null;

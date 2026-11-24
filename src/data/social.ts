@@ -486,6 +486,7 @@ export const ROUTINE_OF: Record<string, string> = {
 export const WORK_SPOTS: Record<string, string[]> = {
   miner: ['mine'],
   logger: ['logs'],
+  blacksmith: ['forge'],
   farmer: ['field', 'orchard', 'flock'],
   railroad: ['platform', 'stockyard'],
   telegrapher: ['platform'],
@@ -503,7 +504,7 @@ export const WORK_SPOTS: Record<string, string[]> = {
 
 /** What a worker does at a named spot (overrides the routine's activity for work blocks). */
 export const SPOT_ACT: Record<string, ActKind> = {
-  mine: 'pick', logs: 'chop', field: 'hoe', orchard: 'tend', flock: 'feed', platform: 'loiter', stockyard: 'feed',
+  mine: 'pick', logs: 'chop', forge: 'hammer', field: 'hoe', orchard: 'tend', flock: 'feed', platform: 'loiter', stockyard: 'feed',
   pens: 'feed', branding: 'tend', pasture: 'feed', roundpen: 'brush', paddock: 'feed', pier: 'tend',
 };
 
@@ -803,4 +804,10 @@ export const SOCIAL_TUNING = {
   hideSec: [12, 10] as [number, number],
   /** Max simultaneous conversations (bubble budget). */
   maxConvos: 6,
+  /** Game minutes a patrolling lawman spends on each leg of the beat. */
+  patrolStepMin: 25,
+  /** Game minutes before a stroller/loiterer drifts to another street spot. */
+  strollStepMin: 45,
+  /** Px a frightened civilian will run to reach a door. */
+  hideSearchRadius: 180,
 };
