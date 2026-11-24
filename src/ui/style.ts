@@ -299,4 +299,11 @@ body.has-touch .kbd-only { display: none !important; }
   .modal .panel, .dialogue .panel { border-width: 16px; border-image-width: 16px; }
   .panel h2 { font-size: 24px; }
 }
+
+/* Blackjack and other card tables on a phone: everything must fit 390px of height. */
+body.has-touch .modal .card { width: 26px; height: 36px; font-size: 13px; line-height: 36px; }
+body.has-touch .modal .cards { gap: 4px; margin: 2px 0; }
+body.has-touch .modal h2 { font-size: 22px; margin: 0 0 2px; }
+body.has-touch .modal .sub { margin-bottom: 4px; }
+body.has-touch .modal p { margin: 4px 0; }
 `;

@@ -22,4 +22,6 @@ export const UI_PT: Record<string, string> = {
   'Weapon drawn. Tap Atirar, or tap the spot you want to hit. Arma holsters, Recarregar reloads.': 'Arma sacada. Toque em Atirar ou no ponto que quer acertar. Arma guarda; Recarregar recarrega.',
   'Weapon drawn. Left-click fires; hold right-click to steady your aim. G holsters.': 'Arma sacada. Clique esquerdo atira; segure o direito para firmar a mira. G guarda.',
   'Pick up at least a trot to jump.': 'É preciso pelo menos um trote para pular.',
+  'made around here — cheap': 'produzido por aqui — barato', 'scarce here — dear': 'escasso aqui — caro',
+  'market flooded — prices low': 'mercado inundado — preço baixo', 'selling steadily — price slipping': 'vendendo bastante — preço caindo', 'in demand here': 'procurado por aqui',
 };

@@ -158,6 +158,17 @@ export class UI {
     this.fishEl.innerHTML = `${esc(s.phase)}<div class="bar hp"><i style="width:${s.tension * 100}%"></i></div><div class="bar ne"><i style="width:${s.progress * 100}%"></i></div>`;
   }
 
+  /** Work meter for jobs: a needle sweeping a track with a visible target zone, plus progress. */
+  setWork(s: { label: string; gauge: number; zoneFrom: number; progress: number; hits: number; need: number } | null): void {
+    if (!s) {
+      this.fishEl.style.display = 'none';
+      return;
+    }
+    this.fishEl.style.display = '';
+    const inZone = s.gauge >= s.zoneFrom;
+    this.fishEl.innerHTML = `${esc(s.label)} <span class="small-note">${s.hits}/${s.need}</span><div class="track" style="margin-top:4px"><div class="zone" style="left:${s.zoneFrom * 100}%;width:${(1 - s.zoneFrom) * 100}%"></div><i style="left:${Math.min(99, s.gauge * 100)}%;${inZone ? 'background:#f6e27a;box-shadow:0 0 6px #ffe680' : ''}"></i></div><div class="bar ne" style="margin-top:4px"><i style="width:${s.progress * 100}%"></i></div>`;
+  }
+
   // --- Per-frame HUD ------------------------------------------------------------------
   update(dt: number): void {
     const g = this.game;
@@ -980,7 +991,9 @@ export class UI {
           const price = g.economy.buyPrice(shopId, id);
           const owned = it.category === 'horseGear' ? g.ownedGear[id] ?? 0 : it.weapon ? (g.player.weapons.includes(id) ? 1 : 0) + g.player.inv.count(id) : g.player.inv.count(id);
           const r = div(body, 'row');
-          r.innerHTML = `<div><div class="nm">${esc(L(it.name))} <span class="small-note">(${q} in stock · you have ${owned})</span></div><div class="ds">${esc(L(it.description))}${it.gear ? ' ' + gearDesc(it.gear) : ''}</div></div><div class="pr">${money(price)}</div>`;
+          const rm = g.economy.regionalMul(def, id);
+          const hint = rm < 0.9 ? `<span class="small-note" style="color:#5a7a3a"> · ${L('made around here — cheap')}</span>` : rm > 1.1 ? `<span class="small-note" style="color:#9a4a2a"> · ${L('scarce here — dear')}</span>` : '';
+          r.innerHTML = `<div><div class="nm">${esc(L(it.name))} <span class="small-note">(${q} in stock · you have ${owned})</span>${hint}</div><div class="ds">${esc(L(it.description))}${it.gear ? ' ' + gearDesc(it.gear) : ''}</div></div><div class="pr">${money(price)}</div>`;
           const b = button(r, 'Buy', 'btn small');
           b.disabled = q <= 0 || g.player.money < price;
           b.onclick = () => {
@@ -996,7 +1009,10 @@ export class UI {
         for (const [id, q] of items) {
           const price = g.economy.sellPrice(shopId, id);
           const r = div(body, 'row');
-          r.innerHTML = `<div class="nm">${esc(L(getItem(id).name))} ×${q}</div><div class="pr">${money(price)}</div>`;
+          const sat = g.economy.saturationAt(shopId, id);
+          const rm2 = g.economy.regionalMul(def, id);
+          const note = sat > 0.5 ? L('market flooded — prices low') : sat > 0.2 ? L('selling steadily — price slipping') : rm2 > 1.1 ? L('in demand here') : '';
+          r.innerHTML = `<div><div class="nm">${esc(L(getItem(id).name))} ×${q}</div>${note ? `<div class="ds">${note}</div>` : ''}</div><div class="pr">${money(price)}</div>`;
           button(r, 'Sell', 'btn small').onclick = () => { g.economy.sell(shopId, id); g.audio.play('coin'); render(); };
           if (q > 1) button(r, 'Sell all', 'btn small').onclick = () => { for (let i = 0; i < q; i++) g.economy.sell(shopId, id); g.audio.play('coin'); render(); };
         }

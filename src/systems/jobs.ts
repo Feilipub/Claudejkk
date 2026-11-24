@@ -525,7 +525,7 @@ export class JobSystem {
         g.audio.play('dryfire');
       }
     }
-    g.ui.setFishing({ phase: `${s.label}: press E as the bar tops out (${s.hits}/${s.need})`, tension: gauge, progress: s.hits / s.need });
+    g.ui.setWork({ label: `${s.label} — hit E (or tap) in the gold zone`, gauge, zoneFrom: BALANCE.jobs.strikeSweet, progress: s.hits / s.need, hits: s.hits, need: s.need });
     if (s.hits >= s.need || s.misses >= s.need + BALANCE.jobs.strikeMissAllowance) {
       const { hits, misses, onDone } = s;
       this.endStrike();
@@ -537,7 +537,7 @@ export class JobSystem {
     if (!this.strike) return;
     this.strike = null;
     this.strikeEndedAt = this.game.time;
-    this.game.ui.setFishing(null);
+    this.game.ui.setWork(null);
   }
 
   // --- World prompts (called from interactions.worldTarget) ---------------------------------
