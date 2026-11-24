@@ -4,6 +4,7 @@
  */
 import { TouchControls } from './ui/touch.ts';
 import { translateDom } from './core/i18n.ts';
+import { horseSprites } from './render/horseSprite.ts';
 import { Game } from './game.ts';
 import { Animal } from './entities/animal.ts';
 import { HAIR_COLORS, SKIN_TONES, humanSprites, PW, PH, type HumanLook } from './render/humanSprite.ts';
@@ -74,7 +75,8 @@ async function boot(): Promise<void> {
   const game = new Game(canvas, gen.world, gen.spots, gen.corrals, DEFAULT_LOOK);
   game.ui = ui;
   window.game = game;
-  (window as unknown as { wfClasses: unknown }).wfClasses = { Animal };
+  // QA hooks: scene scripts compose sprites directly to check rider/horse alignment and the like.
+  (window as unknown as { wfClasses: unknown }).wfClasses = { Animal, humanSprites, horseSprites };
   // Park the camera over Larkspur at golden hour for the title screen.
   game.clock.minutes = 17.6 * 60;
   // Title backdrop: a wild herd grazing on the Calder bottoms at golden hour.

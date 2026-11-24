@@ -10,6 +10,7 @@ import { getItem, ITEMS, type HorseSlot } from '../data/items.ts';
 import { getTrait } from '../data/personalities.ts';
 import { getShop, SERVICE_PRICES, type Service } from '../data/shops.ts';
 import { POIS, REGIONS, SETTLEMENTS, WORLD_H, WORLD_W } from '../data/world.ts';
+import { JOB_BOARDS } from '../data/jobs.ts';
 import type { HorseEntity } from '../entities/horse.ts';
 import type { Game } from '../game.ts';
 import { bondName, bondProgress, grantBond } from '../horse/bonding.ts';
@@ -225,11 +226,21 @@ export class UI {
       const prog = o && o.count && o.count > 1 ? ` (${st.progress[o.id] ?? 0}/${o.count})` : '';
       objEl.style.display = '';
       const wp = g.waypoint ? `<div class="dist">◆ Waypoint ${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds</div>` : '';
-      objEl.innerHTML = `<div class="qt">${esc(q.title)}</div>${o ? esc(o.text) + prog : 'Complete the stage'}${dist ? `<div class="dist">${dist}</div>` : ''}${wp}`;
-    } else if (g.waypoint) {
+      objEl.innerHTML = `<div class="qt">${esc(q.title)}</div>${o ? esc(o.text) + prog : 'Complete the stage'}${dist ? `<div class="dist">${dist}</div>` : ''}${wp}${this.jobLine()}`;
+    } else if (g.waypoint || g.jobs?.active) {
       objEl.style.display = '';
-      objEl.innerHTML = `<div class="qt">Waypoint</div><div class="dist">${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds</div>`;
+      objEl.innerHTML = `${g.waypoint ? `<div class="qt">Waypoint</div><div class="dist">${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds</div>` : ''}${this.jobLine()}`;
     } else objEl.style.display = 'none';
+  }
+
+  /** One HUD line for the active job: what, where, and how long is left. */
+  private jobLine(): string {
+    const g = this.game;
+    const job = g.jobs?.active;
+    if (!job) return '';
+    const t = g.jobs.template(job.offer.templateId);
+    const left = Math.round(job.deadline - g.clock.minutes);
+    return `<div class="qt" style="margin-top:4px">Job · ${esc(t.title)}</div>${esc(g.jobs.detail(job.offer))}<div class="dist">${left > 0 ? `${left} min left` : 'overdue'}</div>`;
   }
 
   private updateCores(): void {
@@ -1326,14 +1337,17 @@ export class UI {
   // --- Journal -------------------------------------------------------------------------------------
   openJournal(): void {
     const g = this.game;
-    let tab = 'quests';
+    const anyActive = [...g.quests.defs.values()].some((q) => g.quests.state(q.id)?.status === 'active');
+    let tab = anyActive ? 'quests' : 'now';
+    const TAB_LABEL: Record<string, string> = { now: 'What now', quests: 'Quests', completed: 'Completed', documents: 'Documents', horses: 'Horses' };
     const render = () => {
       const panel = this.modal('journal', '', 900);
-      panel.innerHTML += `<h2>Journal</h2><div class="tabs">${['quests', 'completed', 'documents', 'horses'].map((t) => `<button class="btn small ${t === tab ? 'active' : ''}" data-tab="${t}">${t[0]!.toUpperCase() + t.slice(1)}</button>`).join('')}</div><div id="jb"></div>`;
+      panel.innerHTML += `<h2>Journal</h2><div class="tabs">${['now', 'quests', 'completed', 'documents', 'horses'].map((t) => `<button class="btn small ${t === tab ? 'active' : ''}" data-tab="${t}">${TAB_LABEL[t]}</button>`).join('')}</div><div id="jb"></div>`;
       panel.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = (b as HTMLElement).dataset.tab!; render(); }));
       panel.querySelector('[data-close]')!.addEventListener('click', () => this.closeModal());
       const jb = panel.querySelector('#jb') as HTMLElement;
-      if (tab === 'quests' || tab === 'completed') {
+      if (tab === 'now') this.renderWhatNow(jb, render);
+      else if (tab === 'quests' || tab === 'completed') {
         const list = [...g.quests.defs.values()].filter((q) => (tab === 'quests' ? g.quests.state(q.id)?.status === 'active' : ['completed', 'failed'].includes(g.quests.state(q.id)?.status ?? '')));
         list.sort((a, b) => (a.kind === 'main' ? -1 : 1) - (b.kind === 'main' ? -1 : 1));
         if (!list.length) jb.innerHTML = '<p class="muted">Nothing here yet. Talk to people — folks around here need help.</p>';
@@ -1367,6 +1381,75 @@ export class UI {
       }
     };
     render();
+  }
+
+  /**
+   * "What now": things to do around the territory right now — the active job, side
+   * quests you haven't picked up, notice boards with work, places left to discover.
+   */
+  private renderWhatNow(jb: HTMLElement, rerender: () => void): void {
+    const g = this.game;
+    const p = g.player;
+    const dist = (x: number, y: number) => Math.round(Math.hypot(x - p.x, y - p.y) / 8);
+    const dirName = (x: number, y: number) => ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][(Math.round(Math.atan2(y - p.y, x - p.x) / (Math.PI / 4)) + 8) % 8]!;
+    const section = (title: string) => {
+      const h = document.createElement('h3');
+      h.textContent = title;
+      jb.appendChild(h);
+    };
+    const row = (html: string, track?: { x: number; y: number } | null, label = 'Track') => {
+      const r = div(jb, 'row');
+      r.innerHTML = `<div>${html}</div>`;
+      if (track) {
+        button(r, label, 'btn small').onclick = () => {
+          g.waypoint = { x: track.x, y: track.y };
+          g.setFlag('waypoint', `${Math.round(track.x / 16)},${Math.round(track.y / 16)}`);
+          this.notify('Waypoint set.', 'info');
+          rerender();
+        };
+      }
+    };
+    // Active job.
+    const job = g.jobs?.active;
+    if (job) {
+      section('Your job');
+      const t = g.jobs.template(job.offer.templateId);
+      const left = Math.round(job.deadline - g.clock.minutes);
+      const dest = job.offer.destId ? g.jobs.boardPx(job.offer.destId) : g.jobs.boardPx(job.offer.boardId);
+      row(`<div class="nm">${esc(t.title)}</div><div class="ds">${esc(g.jobs.detail(job.offer))} · pays about ${money(g.jobs.quote(job.offer))} · ${left > 0 ? `${left} min left` : 'overdue'}</div>`, dest);
+    }
+    // Side quests not started yet, by the people who give them.
+    const open = [...g.quests.defs.values()].filter((q) => q.kind !== 'main' && !g.quests.state(q.id) && q.giver);
+    if (open.length) {
+      section('Folks who could use a hand');
+      for (const q of open.slice(0, 6)) {
+        const def = g.content.NPCS.find((n) => n.id === q.giver);
+        const loc = g.npcLocation(q.giver!);
+        const where = SETTLEMENTS.find((st) => st.id === def?.settlement)?.name ?? 'the territory';
+        row(`<div class="nm">${esc(def?.name ?? q.giver!)} <span class="small-note">${esc(where)}${loc ? ` · ${dist(loc.x, loc.y)} yds ${dirName(loc.x, loc.y)}` : ''}</span></div><div class="ds">${esc(def?.occupation ?? '')}</div>`, loc);
+      }
+    }
+    // Notice boards with work today.
+    const boards = JOB_BOARDS.map((b) => ({ b, px: g.jobs?.boardPx(b.settlementId), n: g.jobs?.offers(b.settlementId).length ?? 0 }))
+      .filter((x) => x.px && x.n > 0)
+      .sort((a, b) => Math.hypot(a.px!.x - p.x, a.px!.y - p.y) - Math.hypot(b.px!.x - p.x, b.px!.y - p.y))
+      .slice(0, 4);
+    if (boards.length) {
+      section('Work on offer');
+      for (const x of boards) row(`<div class="nm">${esc(x.b.name)}</div><div class="ds">${x.n} job${x.n > 1 ? 's' : ''} posted today · ${dist(x.px!.x, x.px!.y)} yds ${dirName(x.px!.x, x.px!.y)}</div>`, x.px!);
+    }
+    // Exploration.
+    const visited = SETTLEMENTS.filter((st) => g.flags[`visited_${st.id}`]).length;
+    const unknownTowns = SETTLEMENTS.filter((st) => !g.flags[`visited_${st.id}`]).sort((a, b) => Math.hypot(a.x * 16 - p.x, a.y * 16 - p.y) - Math.hypot(b.x * 16 - p.x, b.y * 16 - p.y));
+    const unknownPois = POIS.filter((q) => !g.discovered.has(q.id)).sort((a, b) => Math.hypot(a.x * 16 - p.x, a.y * 16 - p.y) - Math.hypot(b.x * 16 - p.x, b.y * 16 - p.y));
+    section('The territory');
+    row(`<div class="nm">${g.discovered.size + visited} of ${POIS.length + SETTLEMENTS.length} places found</div><div class="ds">${unknownTowns[0] ? `A settlement you haven't visited lies ${dirName(unknownTowns[0].x * 16, unknownTowns[0].y * 16)}, about ${dist(unknownTowns[0].x * 16, unknownTowns[0].y * 16)} yds.` : 'You have visited every settlement.'}${unknownPois[0] ? ` Something worth finding lies ${dirName(unknownPois[0].x * 16, unknownPois[0].y * 16)} of here.` : ''}</div>`, unknownTowns[0] ? { x: unknownTowns[0].x * 16, y: unknownTowns[0].y * 16 } : null, 'Ride there');
+    if (g.flags['pale_mare_known'] && !g.flags['pale_mare_tamed']) row(`<div class="nm">The Pale Mare</div><div class="ds">Runs with the mustangs on Mustang Flats. Nobody has caught her.</div>`, { x: 190 * 16, y: 390 * 16 });
+    const horses = g.ownedHorses();
+    if (horses.length) {
+      const h = horses[0]!;
+      row(`<div class="nm">${esc(h.data.name)}</div><div class="ds">Bond ${bondName(h.data)}. Care, long rides and time together deepen it; stables train and breed.</div>`);
+    }
   }
 
   openLore(id: string): void {
