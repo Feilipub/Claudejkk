@@ -3,7 +3,7 @@
  * it) → character creation or load → game loop.
  */
 import { TouchControls } from './ui/touch.ts';
-import { L, translateDom } from './core/i18n.ts';
+import { L, missing as i18nMissing, translateDom } from './core/i18n.ts';
 import { horseSprites } from './render/horseSprite.ts';
 import { Game } from './game.ts';
 import { Animal } from './entities/animal.ts';
@@ -77,6 +77,8 @@ async function boot(): Promise<void> {
   window.game = game;
   // QA hooks: scene scripts compose sprites directly to check rider/horse alignment and the like.
   (window as unknown as { wfClasses: unknown }).wfClasses = { Animal, humanSprites, horseSprites };
+  // Localisation QA: strings asked for in a non-English locale that had no translation yet.
+  (window as unknown as { wfI18nMissing: Set<string> }).wfI18nMissing = i18nMissing;
   // Park the camera over Larkspur at golden hour for the title screen.
   game.clock.minutes = 17.6 * 60;
   // Title backdrop: a wild herd grazing on the Calder bottoms at golden hour.
@@ -163,10 +165,12 @@ function titleMenu(game: Game, start: () => void): void {
     ui.layer.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', () => {
       if (game.load((b as HTMLElement).dataset.slot!)) start();
     }));
+    translateDom(ui.layer);
     document.getElementById('mback')!.onclick = () => titleMenu(game, start);
   };
   document.getElementById('mabout')!.onclick = () => {
     ui.layer.innerHTML = `<div class="menu-bg"><div class="panel" style="width:min(640px,92vw)"><h2>About</h2><p style="font-size:17px">Wild Frontier is an original open-world western set in the fictional Calder Territory. Ride, care for and bond with your horse, explore six regions, and untangle the mystery behind the rustling on your uncle's ranch.</p><p style="font-size:15px" class="muted">Pixel art, terrain, horses, people, music and sound effects are all generated procedurally at runtime. Fonts: Rye, IM Fell English, Pixelify Sans (SIL Open Font License).</p><div style="text-align:center"><button class="btn" id="mback">Back</button></div></div></div>`;
+    translateDom(ui.layer);
     document.getElementById('mback')!.onclick = () => titleMenu(game, start);
   };
 }
@@ -205,6 +209,7 @@ function creator(game: Game, start: () => void): void {
       <div class="opt-row"><label>Trousers / skirt</label><div class="swatches">${sw('pants', darks)}</div><label style="margin-top:4px"><input type="checkbox" id="skirt" ${look.skirt ? 'checked' : ''}> Riding skirt</label></div>
       <div class="opt-row"><label>Bandana</label><div class="swatches">${sw('bandana', ['#9a2a2a', '#2a4a8a', '#c9a24a', '#3a5a3a', '#e0dcd0'], true)}</div></div>
       <div style="text-align:right;margin-top:10px"><button class="btn" id="back">Back</button><button class="btn gold" id="go">Ride to Larkspur</button></div></div></div></div>`;
+    translateDom(ui.layer);
     const pv = document.getElementById('pv') as HTMLCanvasElement;
     const c = pv.getContext('2d')!;
     c.imageSmoothingEnabled = false;
