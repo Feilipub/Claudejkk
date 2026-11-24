@@ -35,3 +35,14 @@ Last updated: 2026-11-23. Severity: S1 blocker · S2 major · S3 minor · S4 cos
 | Hotels and depots (services only) opened on an empty Buy tab. | The first available tab is selected. | Manual check. |
 | Horse rename used `prompt()`, which is blocked when the game is embedded as a page. | Replaced with an inline input. | Manual check. |
 | A camp wasn't restored on load. | The campfire entity is restored. | `npm run test:persist` covers the save path. |
+
+## Open after the 2026-11-24 playtests (not yet fixed)
+| Id | Severity | Issue | Source |
+|---|---|---|---|
+| WF-B20 | Medium | "Hold up (rob)" sits next to "Greet" in the traveller prompt; a mis-tap on a phone is a crime. Needs a confirmation step. | Diego, Lucas |
+| WF-B21 | Medium | Shops have no opening hours feedback: at night the door is closed with no "Closed" notice. | Lucas |
+| WF-B22 | Low | Speech bubbles can overlap the interaction prompt and each other on a phone. | Rafael, Lucas |
+| WF-B23 | Low | The "Pale Mare" first objective completes on arriving at Mustang Flats even if the herd is out of sight; the mare spawns correctly (verified) but the player may not see her. | Lucas |
+| WF-B24 | Low | Roofs of deep buildings (Port Ashby) still dominate the screen; building depth comes from the settlement layout. | buildings specialist |
+| WF-B25 | Low | Foals reuse the adult horse drawing scaled down. | horses specialist |
+| WF-B26 | Low | Interpolated code strings are not yet translated until the tr`` refactor lands (in progress). | lead |

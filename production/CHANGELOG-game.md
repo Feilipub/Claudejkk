@@ -154,3 +154,34 @@ Five specialists, each owning one area: horses, characters and portraits, terrai
     - Dismounting never puts you inside a building.
     - The map zooms ×1 to ×4.
     - Josiah's line now matches Biscuit (a gelding).
+
+## 2026-11-24 — "Make it feel drawn, make it feel lived in"
+### Art, round 3 (hand-pixelled everything)
+- New pipeline: `render/pixmap.ts` (text pixel grids → canvas through one master palette `PAL`, `recolor`/`flipX`/`compose`) and `design/art/pixel-art-bible.md`. No shape-painting or noise remains in final art.
+- Ground: 16×16 hand-drawn tiles with 3–4 variants, organic transitions with a raised lip, cliffs with strata, roads with ruts, bridges, rails, shoreline foam; chunk painting 2.4× faster.
+- Props: every tree, bush, cactus, rock, fence, well, trough, barrel, lamp, windmill, water tower, interior furniture redrawn; 3 variants each.
+- Buildings: assembled from pixel modules (shingle/tin/adobe roofs, clapboard/board-and-batten/brick/log/adobe walls, windows with glints and curtains, doors, false fronts, porches, boardwalks, crisp signs).
+- Characters: big readable heads, per-material tinted outlines, 8 hats, 6 hairstyles, 4 beards, layered clothes, all poses; portraits redrawn.
+- Horses: 3 body templates by breed, 18 coats by palette swap, drawn pattern masks, per-leg markings, tack in all views, all gaits, lie/sleep pose.
+- Wildlife: 11 quadrupeds, rabbit, 5 birds, snake redrawn; UI: wood-and-brass frames, leather HUD plaques, pixel icons, pressed-state buttons, touch buttons with icons.
+
+### Mobile
+- Whole device pixels per game pixel on any DPR; Camera setting (Far/Normal/Close); viewport-fit=cover + safe-area insets; app-capable metas; rotate overlay in portrait; fullscreen + landscape lock on first touch (where allowed); scrollable prompt; compact phone HUD; blackjack fits a phone; doorway funnel so you can enter buildings without pixel-perfect alignment.
+
+### Open world
+- 4 new settlements (Harrow Junction, Las Golondrinas, Lodestar Camp, Toller's Landing) and 4 ranches/farms (Coldiron Cattle Co., Starling Horse Ranch, Arrieta Sheep Camp, Ashgrove Orchard), 11 roads, 17 signposts, 19 shops, 31 named NPCs.
+- Jobs: notice boards in 17 settlements, 19 job templates (freight/mail/strongbox deliveries, gather contracts, cattle drives, fence/trough/forge chores, colt breaking, bounties, saloon shifts), a strike meter with a target zone, free work (dig ore, fell timber), reputation with employers.
+- Trade: regional supply/demand prices, 8 trade goods, trade posts, per-region saturation, shop hints (made here / scarce here / flooded).
+- Property: 3 homestead plots with 6 improvements and daily tax.
+- NPC life: 26 occupation routines with Sunday church, visible work (hammering, sweeping, feeding, hoeing, patrols, kids' tag), NPC↔NPC conversations with topics and relationships, reactions to rain/night/gunfire/the player's reputation, shopkeepers greeting regulars by name.
+- Wildlife quota counts groups, not heads (the plains were empty after one cattle herd).
+- Journal "What now" tab: job, quest givers to find, boards with work, places left, the Pale Mare; HUD shows the active job and time left.
+- Law: gunshots in town are heard (warning, then a charge); lawmen only shoot to kill for murder or big bounties; Surrender/Resist options; lawmen come for wanted players in town.
+- Horses wake when you walk up or whistle; "Fed/Watered" labels; rider sprites carry their own legs.
+
+### Localisation
+- `core/i18n.ts` (English keys → dictionary, `L()`, tr``, `translateDom`), language setting (auto-detected), 1,739 strings extracted from data and being translated to pt-BR in per-slice dictionary files.
+
+### Tooling and QA
+- `tools/playd.mjs` phone emulation (touch-only playtests), `tools/phone-scene.mjs`, `WF_OUT` parallel builds, `WF_DUMP_SAVE`/`WF_SAVE` for post-story playtests, `tools/i18n-keys.mjs`.
+- Post-story open-world playtest report (`production/qa/playtests/openworld/report.md`, 5/10 before the expansion).

@@ -71,3 +71,16 @@ The touch controls appear on their own on touch screens. Play with the phone hel
 - **Weather:** in the High Sierra, put a heavy blanket on your horse and keep a fire going at night.
 - **The law:** crimes only matter if someone sees them and lives to report them. Lawmen will try to arrest you before shooting.
 - **Markets:** traders' prices drift and depend on your reputation. Pelts sell for less if you flood one market.
+
+## Making a living
+- **Notice boards** stand by the sheriff's office, depot, hotel or ranch house in 17 settlements. Read one (E / tap) to take a job: freight and mail runs, strongbox escorts, hunting and gathering contracts, cattle drives, fence and trough chores, forge work, colt breaking, bounties, saloon shifts. One job at a time; pay rises with skill and your standing with the employer.
+- **Work meter:** chores use a sweeping needle — press E (or tap) when it is in the gold zone.
+- **Free work:** dig ore at a mine entrance with a pickaxe, fell timber with an axe (sold at general stores), fish, hunt.
+- **Trade:** goods are cheap where they are made and dear where they are scarce (the shop says so). Flooding one town's market lowers its prices for a few days; other towns are unaffected.
+- **Land:** the land office (Larkspur or Port Ashby notice board) sells three homestead plots. Build a well, cabin, garden, coop, stable or pasture; pay the daily tax or production stops.
+
+## The wider territory
+Harrow Junction (railroad town, east of the lake), Las Golondrinas (adobe pueblo on the southern border), Lodestar Camp (silver camp in the High Sierra), Toller's Landing (river trading post), and the Coldiron, Starling, Arrieta and Ashgrove ranches. Signposts at every junction; the stagecoach serves the larger towns.
+
+## Language
+Settings → Language: English or Português (Brasil); Auto follows your phone or browser. Dialogue, journal, items and most of the interface are translated; a few generated sentences may still appear in English.

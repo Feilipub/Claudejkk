@@ -1,6 +1,6 @@
 # Wild Frontier — Feature Completion Report
 
-Last updated: 2026-11-23. Status key:
+Last updated: 2026-11-24. Status key:
 - ✅ implemented and verified by an automated test or a screenshot
 - 🟡 implemented with known gaps
 - ⬜ not implemented
@@ -32,7 +32,7 @@ Last updated: 2026-11-23. Status key:
 | Economy: appraisal, trader corrals, buy/sell, regional demand, reputation pricing, rentals, stolen horses | ✅ | Unit test (appraisal) |
 | Wild horses: herds, lasso, calming, bucking break-in | ✅ | Smoke test |
 | Legendary Pale Mare | ✅ | Quest `horse_pale_mare` |
-| Breeding | ⬜ | Not attempted |
+| Breeding | ✅ | Ranch service; foals inherit genes/coat/traits (unit test) |
 
 ## Priority 3 — World immersion
 | Feature | Status | Notes |
@@ -89,3 +89,20 @@ Last updated: 2026-11-23. Status key:
 | Horse breeding at the Brannigan ranch: foals inherit genes, coat, pattern and temperament, and are drawn small until grown | ✅ | 5 unit tests plus a scene test |
 | Dynamic horse-thief events: chase, whistle (bond 3+ throws the thief), or recover the horse from a distant livery | ✅ | Scene test |
 | Cattle herds on the plains and in the basin; killing a steer is a crime | ✅ | |
+
+## Added 2026-11-24
+| Feature | Status | Notes |
+|---|---|---|
+| Hand-pixelled art pipeline (tiles, props, buildings, characters, portraits, horses, wildlife, UI) | ✅ | `production/qa/evidence/art3/*` before/after |
+| Mobile: device-pixel scaling, camera setting, safe area, rotate overlay, touch HUD, doorway funnel | ✅ | `tools/phone-scene.mjs` screenshots |
+| 8 new settlements/ranches, 11 roads, 17 signposts, 19 shops, 31 named NPCs | ✅ | `production/qa/evidence/world/*`; story tests green |
+| Jobs (19 templates, 17 boards), free work, strike meter | ✅ | 34 unit tests; `production/qa/evidence/economy-jobs/*` |
+| Regional trade, trade posts, saturation per region, shop hints | ✅ | unit tests |
+| Homestead plots and improvements | ✅ | unit tests; scene screenshot |
+| NPC routines, visible work, NPC↔NPC talk, reactions, memory | ✅ | `production/qa/evidence/npc-life/*`; 0.06 ms/frame |
+| Journal "What now" + active job on HUD | ✅ | screenshot |
+| Localisation layer + pt-BR dictionary | 🟡 | data strings translated by slice; code strings being refactored to tr`` |
+| Procedural soundtrack and richer SFX | 🟡 | in progress (wave 2) |
+| Wildlife behaviour and hunting quality | 🟡 | in progress (wave 2) |
+| Dynamic road events | 🟡 | in progress (wave 2) |
+| Notice-board / plot / fruit-tree props, corral livestock | 🟡 | in progress |
