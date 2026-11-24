@@ -6,6 +6,7 @@
  * the first touch.
  */
 import type { Game } from '../game.ts';
+import { L } from '../core/i18n.ts';
 
 interface Btn {
   label: string;
@@ -21,27 +22,27 @@ interface Btn {
 
 const ACTIONS: Btn[] = [
   { label: 'E', code: 'KeyE', cls: 'big', icon: 'hand' },
-  { label: 'Montar', code: 'KeyF', icon: 'horse' },
-  { label: 'Correr', code: 'ShiftLeft', hold: true, icon: 'boot' },
-  { label: 'Frear', code: 'ControlLeft', icon: 'brake', cap: true },
-  { label: 'Pular', code: 'Space', icon: 'jump' },
-  { label: 'Assobio', code: 'KeyH', icon: 'whistle' },
-  { label: 'Arma', code: 'KeyG', icon: 'gun' },
-  { label: 'Atirar', code: 'Mouse0', cls: 'fire', hold: true, icon: 'sight' },
-  { label: 'Recarregar', code: 'KeyR', cls: 'sw rl', icon: 'reload' },
+  { label: 'Mount', code: 'KeyF', icon: 'horse' },
+  { label: 'Run', code: 'ShiftLeft', hold: true, icon: 'boot' },
+  { label: 'Slow', code: 'ControlLeft', icon: 'brake', cap: true },
+  { label: 'Jump', code: 'Space', icon: 'jump' },
+  { label: 'Whistle', code: 'KeyH', icon: 'whistle' },
+  { label: 'Gun', code: 'KeyG', icon: 'gun' },
+  { label: 'Fire', code: 'Mouse0', cls: 'fire', hold: true, icon: 'sight' },
+  { label: 'Reload', code: 'KeyR', cls: 'sw rl', icon: 'reload' },
   { label: '◀', code: 'KeyZ', cls: 'sw' },
   { label: '▶', code: 'KeyX', cls: 'sw' },
 ];
 
 const MENUS: Btn[] = [
   { label: 'Menu', code: 'Escape', icon: 'menu' },
-  { label: 'Mapa', code: 'KeyM', icon: 'map', cap: true },
-  { label: 'Itens', code: 'KeyI', icon: 'bag', cap: true },
-  { label: 'Cavalo', code: 'KeyB', icon: 'shoe', cap: true },
-  { label: 'Diário', code: 'KeyJ', icon: 'book', cap: true },
-  { label: 'Acampar', code: 'KeyK', icon: 'tent', cap: true },
-  { label: 'Lampião', code: 'KeyL', icon: 'lamp', cap: true },
-  { label: 'Agachar', code: 'KeyV', icon: 'crouch', cap: true },
+  { label: 'Map', code: 'KeyM', icon: 'map', cap: true },
+  { label: 'Items', code: 'KeyI', icon: 'bag', cap: true },
+  { label: 'Horse', code: 'KeyB', icon: 'shoe', cap: true },
+  { label: 'Journal', code: 'KeyJ', icon: 'book', cap: true },
+  { label: 'Camp', code: 'KeyK', icon: 'tent', cap: true },
+  { label: 'Lantern', code: 'KeyL', icon: 'lamp', cap: true },
+  { label: 'Crouch', code: 'KeyV', icon: 'crouch', cap: true },
 ];
 
 export class TouchControls {
@@ -70,11 +71,11 @@ export class TouchControls {
     const make = (host: HTMLElement, b: Btn) => {
       const el = document.createElement('button');
       el.className = 'tbtn ' + (b.cls ?? '') + (b.icon ? ` ti ti-${b.icon}` : '');
-      el.setAttribute('aria-label', b.label);
+      el.setAttribute('aria-label', L(b.label));
       if (b.icon) {
-        el.innerHTML = `<span class="ic"></span>${b.cap ? `<small>${b.label}</small>` : ''}`;
+        el.innerHTML = `<span class="ic"></span>${b.cap ? `<small>${L(b.label)}</small>` : ''}`;
         if (b.code === 'KeyE') el.insertAdjacentHTML('beforeend', '<b class="key-e">E</b>');
-      } else el.textContent = b.label;
+      } else el.textContent = L(b.label);
       el.addEventListener('touchstart', (e) => {
         e.preventDefault();
         if (b.code === 'Mouse0') this.aimAhead();

@@ -3,7 +3,7 @@
  * it) → character creation or load → game loop.
  */
 import { TouchControls } from './ui/touch.ts';
-import { translateDom } from './core/i18n.ts';
+import { L, translateDom } from './core/i18n.ts';
 import { horseSprites } from './render/horseSprite.ts';
 import { Game } from './game.ts';
 import { Animal } from './entities/animal.ts';
@@ -37,7 +37,7 @@ if (coarse) {
   const rotate = document.createElement('div');
   rotate.id = 'rotate';
   rotate.style.cssText = 'position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:#120d0a;color:#f0e2c4;font:18px Georgia,serif;text-align:center;padding:24px';
-  rotate.innerHTML = '<div style="font-size:64px;line-height:1">📱↻</div><div><b>Vire o celular na horizontal</b><br><span style="opacity:.75">Wild Frontier é jogado com a tela deitada.</span></div>';
+  rotate.innerHTML = `<div style="font-size:64px;line-height:1">📱↻</div><div><b>${L('Turn your phone sideways')}</b><br><span style="opacity:.75">${L('Wild Frontier is played in landscape.')}</span></div>`;
   app.appendChild(rotate);
   const check = () => {
     rotate.style.display = window.innerHeight > window.innerWidth ? 'flex' : 'none';

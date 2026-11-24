@@ -114,6 +114,7 @@ export class UI {
 
   // --- Notifications ------------------------------------------------------------
   notify(text: string, kind: NoteKind = 'info'): void {
+    text = L(text);
     const n = div(this.notes, `note ${kind}`);
     n.textContent = text;
     while (this.notes.children.length > 6) this.notes.firstElementChild!.remove();
@@ -121,6 +122,7 @@ export class UI {
     setTimeout(() => n.remove(), 5700);
   }
   banner(text: string, seconds: number): void {
+    text = L(text);
     this.bannerEl.textContent = text;
     this.bannerEl.style.opacity = '1';
     this.bannerT = seconds;
@@ -208,7 +210,7 @@ export class UI {
     if (wid) {
       const it = getItem(wid);
       const ws = it.weapon!;
-      el('weapon').innerHTML = `<b>${esc(it.name)}</b>${ws.ammo ? ` &nbsp;${p.clip[wid] ?? 0}/${ws.clip} · ${p.inv.count(ws.ammo)}` : ''}${p.reloadT > 0 ? ' · reloading' : ''}`;
+      el('weapon').innerHTML = `<b>${esc(L(it.name))}</b>${ws.ammo ? ` &nbsp;${p.clip[wid] ?? 0}/${ws.clip} · ${p.inv.count(ws.ammo)}` : ''}${p.reloadT > 0 ? ' · reloading' : ''}`;
     } else el('weapon').innerHTML = `<span style="opacity:.7">Holstered — [G] draw · [Z/X] switch</span>`;
     // Tracked objective.
     const q = g.quests.tracked ? g.quests.defs.get(g.quests.tracked) : null;
@@ -226,7 +228,7 @@ export class UI {
       const prog = o && o.count && o.count > 1 ? ` (${st.progress[o.id] ?? 0}/${o.count})` : '';
       objEl.style.display = '';
       const wp = g.waypoint ? `<div class="dist">◆ Waypoint ${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds</div>` : '';
-      objEl.innerHTML = `<div class="qt">${esc(q.title)}</div>${o ? esc(o.text) + prog : 'Complete the stage'}${dist ? `<div class="dist">${dist}</div>` : ''}${wp}${this.jobLine()}`;
+      objEl.innerHTML = `<div class="qt">${esc(L(q.title))}</div>${o ? esc(L(o.text)) + prog : L('Complete the stage')}${dist ? `<div class="dist">${dist}</div>` : ''}${wp}${this.jobLine()}`;
     } else if (g.waypoint || g.jobs?.active) {
       objEl.style.display = '';
       objEl.innerHTML = `${g.waypoint ? `<div class="qt">Waypoint</div><div class="dist">${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds</div>` : ''}${this.jobLine()}`;
@@ -240,7 +242,7 @@ export class UI {
     if (!job) return '';
     const t = g.jobs.template(job.offer.templateId);
     const left = Math.round(job.deadline - g.clock.minutes);
-    return `<div class="qt" style="margin-top:4px">Job · ${esc(t.title)}</div>${esc(g.jobs.detail(job.offer))}<div class="dist">${left > 0 ? `${left} min left` : 'overdue'}</div>`;
+    return `<div class="qt" style="margin-top:4px">Job · ${esc(L(t.title))}</div>${esc(g.jobs.detail(job.offer))}<div class="dist">${left > 0 ? `${left} min left` : 'overdue'}</div>`;
   }
 
   private updateCores(): void {
@@ -326,7 +328,7 @@ export class UI {
     if (t && t.actions.length && !this.modalOpen) {
       t.actions.slice(0, 7).forEach((a, i) => {
         const key = i === g.interactions.selected ? 'E' : String(i + 1);
-        lines.push(`<div class="pa ${i === g.interactions.selected ? 'sel' : ''} ${a.enabled === false ? 'dis' : ''}" data-i="${i}"><span class="key">${key}</span>${esc(a.label)}</div>`);
+        lines.push(`<div class="pa ${i === g.interactions.selected ? 'sel' : ''} ${a.enabled === false ? 'dis' : ''}" data-i="${i}"><span class="key">${key}</span>${esc(L(a.label))}</div>`);
       });
     }
     const mountable = !p.mount && g.nearestRideableHorse(p.x, p.y, 28);
@@ -337,7 +339,7 @@ export class UI {
       return;
     }
     this.promptEl.style.display = '';
-    const html = `${t ? `<div class="pt">${esc(t.title)}</div>${t.subtitle ? `<div class="ps">${esc(t.subtitle)}</div>` : ''}` : ''}${lines.join('')}`;
+    const html = `${t ? `<div class="pt">${esc(L(t.title))}</div>${t.subtitle ? `<div class="ps">${esc(L(t.subtitle))}</div>` : ''}` : ''}${lines.join('')}`;
     if (this.promptEl.innerHTML !== html) {
       this.promptEl.innerHTML = html;
       // Keep the selected row in view when ◀ ▶ cycle through a long list.
@@ -498,11 +500,11 @@ export class UI {
   }
 
   choice(text: string, options: { label: string; enabled: boolean; run: () => void }[], onCancel?: () => void): void {
-    const p = this.modal('choice', `<p style="font-size:19px">${esc(text)}</p><div id="ch"></div>`, 560);
+    const p = this.modal('choice', `<p style="font-size:19px">${esc(L(text))}</p><div id="ch"></div>`, 560);
     this.modalCancel = onCancel ?? null;
     const ch = p.querySelector('#ch')!;
     for (const o of options) {
-      const b = button(ch as HTMLElement, o.label, 'btn');
+      const b = button(ch as HTMLElement, L(o.label), 'btn');
       b.disabled = !o.enabled;
       b.onclick = () => {
         this.modalCancel = null;
@@ -536,7 +538,7 @@ export class UI {
   showDialogue(d: OpenDialogue): void {
     this.closeModal();
     this.dlgOpen = d;
-    this.dlgPages = this.pageText(d.text);
+    this.dlgPages = this.pageText(L(d.text));
     this.dlgPage = 0;
     this.dlgShownAt = performance.now();
     this.renderDialogue();
@@ -576,7 +578,7 @@ export class UI {
       const b = document.createElement('button');
       b.className = 'opt';
       b.disabled = !o.enabled;
-      b.innerHTML = `<span class="key">${i + 1}</span>${esc(o.enabled ? o.opt.text : `${o.opt.text} — ${o.opt.lockedHint ?? ''}`)}${o.opt.tone ? `<span class="tone">${o.opt.tone}</span>` : ''}`;
+      b.innerHTML = `<span class="key">${i + 1}</span>${esc(o.enabled ? L(o.opt.text) : `${L(o.opt.text)} — ${L(o.opt.lockedHint ?? '')}`)}${o.opt.tone ? `<span class="tone">${esc(L(o.opt.tone))}</span>` : ''}`;
       b.onclick = () => this.game.dialogue.choose(i);
       box.appendChild(b);
     });
@@ -750,7 +752,7 @@ export class UI {
       for (const w of p.weapons) {
         const r = div(pinv, 'row');
         const it = getItem(w);
-        r.innerHTML = `<div><div class="nm">${esc(it.name)}${p.weapon === w ? ' <span class="chip">equipped</span>' : ''}</div><div class="ds">${esc(it.description)}</div></div>`;
+        r.innerHTML = `<div><div class="nm">${esc(L(it.name))}${p.weapon === w ? ' <span class="chip">equipped</span>' : ''}</div><div class="ds">${esc(L(it.description))}</div></div>`;
         button(r, 'Equip', 'btn small').onclick = () => {
           p.weaponIdx = p.weapons.indexOf(w);
           // Selected, not drawn: walking out of a shop with an iron in hand gets the law's attention.
@@ -765,7 +767,7 @@ export class UI {
         for (const [id, q] of items) {
           const it = getItem(id);
           const r = div(pinv, 'row');
-          r.innerHTML = `<div><div class="nm">${esc(it.name)} ×${q}</div><div class="ds">${esc(it.description)}</div></div>`;
+          r.innerHTML = `<div><div class="nm">${esc(L(it.name))} ×${q}</div><div class="ds">${esc(L(it.description))}</div></div>`;
           if (['food', 'drink', 'medicine'].includes(it.category)) button(r, 'Use', 'btn small').onclick = () => { this.useItem(id); render(); };
           if (it.category === 'document' || it.category === 'quest') {
             const doc = g.content.LORE.find((l) => l.id === `doc_${id.replace(/_([a-z])/g, (_m, c) => c.toUpperCase())}` || l.id === id);
@@ -798,7 +800,7 @@ export class UI {
         if (q <= 0) continue;
         const it = getItem(id);
         const r = div(hinv, 'row');
-        r.innerHTML = `<div class="nm">${esc(it.name)} ×${q}</div>`;
+        r.innerHTML = `<div class="nm">${esc(L(it.name))} ×${q}</div>`;
         button(r, 'Take', 'btn small').onclick = () => {
           if (!p.inv.canAdd(id)) return this.notify('No room in your satchel.', 'bad');
           p.inv.add(id);
@@ -810,7 +812,7 @@ export class UI {
       const gear = Object.entries(g.ownedGear).filter(([, n]) => n > 0);
       if (gear.length) {
         hinv.insertAdjacentHTML('beforeend', '<h3>Spare tack</h3>');
-        for (const [id, n] of gear) div(hinv, 'row').innerHTML = `<div class="nm">${esc(getItem(id).name)} ×${n}</div><div class="ds">Equip from the horse screen [B]</div>`;
+        for (const [id, n] of gear) div(hinv, 'row').innerHTML = `<div class="nm">${esc(L(getItem(id).name))} ×${n}</div><div class="ds">Equip from the horse screen [B]</div>`;
       }
     };
     render();
@@ -893,7 +895,7 @@ export class UI {
           ${statline('Hooves', d.hoof / 100, Math.round(d.hoof) + '%')}
           ${statline('Calm', 1 - d.stress / 100, Math.round(100 - d.stress) + '%')}
           <h3>Details</h3><div class="kv"><b>Personality</b><span>${d.traits.map((t) => getTrait(t).description).join(' ')}</span>
-          <b>Favourite treat</b><span>${own || bondLevel(d) >= 2 ? esc(getItem(d.favoriteFood).name) : 'Unknown — spend time together'}</span>
+          <b>Favourite treat</b><span>${own || bondLevel(d) >= 2 ? esc(L(getItem(d.favoriteFood).name)) : 'Unknown — spend time together'}</span>
           <b>Dislikes</b><span>${own && bondLevel(d) >= 3 ? esc(d.dislike) : own ? 'Not yet known (bond 3)' : 'Unknown'}</span>
           <b>Distance ridden</b><span>${d.kmRidden.toFixed(1)} km</span><b>Fair value</b><span>${money(val)}</span><b>Mood</b><span>${esc(h.brain.label)}</span></div>`;
         if (own) {
@@ -919,7 +921,7 @@ export class UI {
         for (const s of slots) {
           const cur = d.gear[s];
           const r = div(right, 'row');
-          r.innerHTML = `<div><div class="nm">${s[0]!.toUpperCase() + s.slice(1)}: ${cur ? esc(getItem(cur).name) : '<i>none</i>'}</div>${cur ? `<div class="ds">Condition ${Math.round(d.gearCondition[s] ?? 100)}%</div>` : ''}</div>`;
+          r.innerHTML = `<div><div class="nm">${s[0]!.toUpperCase() + s.slice(1)}: ${cur ? esc(L(getItem(cur).name)) : '<i>none</i>'}</div>${cur ? `<div class="ds">Condition ${Math.round(d.gearCondition[s] ?? 100)}%</div>` : ''}</div>`;
           if (cur) button(r, 'Remove', 'btn small').onclick = () => {
             g.ownedGear[cur] = (g.ownedGear[cur] ?? 0) + 1;
             delete d.gear[s];
@@ -978,7 +980,7 @@ export class UI {
           const price = g.economy.buyPrice(shopId, id);
           const owned = it.category === 'horseGear' ? g.ownedGear[id] ?? 0 : it.weapon ? (g.player.weapons.includes(id) ? 1 : 0) + g.player.inv.count(id) : g.player.inv.count(id);
           const r = div(body, 'row');
-          r.innerHTML = `<div><div class="nm">${esc(it.name)} <span class="small-note">(${q} in stock · you have ${owned})</span></div><div class="ds">${esc(it.description)}${it.gear ? ' ' + gearDesc(it.gear) : ''}</div></div><div class="pr">${money(price)}</div>`;
+          r.innerHTML = `<div><div class="nm">${esc(L(it.name))} <span class="small-note">(${q} in stock · you have ${owned})</span></div><div class="ds">${esc(L(it.description))}${it.gear ? ' ' + gearDesc(it.gear) : ''}</div></div><div class="pr">${money(price)}</div>`;
           const b = button(r, 'Buy', 'btn small');
           b.disabled = q <= 0 || g.player.money < price;
           b.onclick = () => {
@@ -994,7 +996,7 @@ export class UI {
         for (const [id, q] of items) {
           const price = g.economy.sellPrice(shopId, id);
           const r = div(body, 'row');
-          r.innerHTML = `<div class="nm">${esc(getItem(id).name)} ×${q}</div><div class="pr">${money(price)}</div>`;
+          r.innerHTML = `<div class="nm">${esc(L(getItem(id).name))} ×${q}</div><div class="pr">${money(price)}</div>`;
           button(r, 'Sell', 'btn small').onclick = () => { g.economy.sell(shopId, id); g.audio.play('coin'); render(); };
           if (q > 1) button(r, 'Sell all', 'btn small').onclick = () => { for (let i = 0; i < q; i++) g.economy.sell(shopId, id); g.audio.play('coin'); render(); };
         }
@@ -1355,9 +1357,9 @@ export class UI {
           const st = g.quests.state(q.id)!;
           const objs = tab === 'quests' ? g.quests.visibleObjectives(q.id) : [];
           const box = div(jb, '');
-          box.innerHTML = `<h3>${esc(q.title)} <span class="small-note">${q.kind === 'main' ? 'Story' : q.kind}${st.status === 'failed' ? ' · failed' : ''}</span></h3>
-            <p class="lore" style="font-size:16px;font-style:italic">${esc(st.log[st.log.length - 1] ?? q.summary)}</p>
-            ${objs.map((o) => `<div class="row"><span>${st.done.includes(o.id) ? '☑' : '☐'} ${esc(o.text)}${o.optional ? ' <i>(optional)</i>' : ''}</span><span class="pr">${o.count && o.count > 1 ? `${st.progress[o.id] ?? 0}/${o.count}` : ''}</span></div>`).join('')}`;
+          box.innerHTML = `<h3>${esc(L(q.title))} <span class="small-note">${L(q.kind === 'main' ? 'Story' : q.kind)}${st.status === 'failed' ? ` · ${L('failed')}` : ''}</span></h3>
+            <p class="lore" style="font-size:16px;font-style:italic">${esc(L(st.log[st.log.length - 1] ?? q.summary))}</p>
+            ${objs.map((o) => `<div class="row"><span>${st.done.includes(o.id) ? '☑' : '☐'} ${esc(L(o.text))}${o.optional ? ` <i>(${L('optional')})</i>` : ''}</span><span class="pr">${o.count && o.count > 1 ? `${st.progress[o.id] ?? 0}/${o.count}` : ''}</span></div>`).join('')}`;
           if (tab === 'quests') {
             const b = button(box, g.quests.tracked === q.id ? 'Tracked' : 'Track', 'btn small');
             b.disabled = g.quests.tracked === q.id;
