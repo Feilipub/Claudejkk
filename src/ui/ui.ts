@@ -138,7 +138,7 @@ export class UI {
     el.style.display = '';
     el.style.left = `${(x - r.camX) * r.scale}px`;
     el.style.top = `${(y - r.camY) * r.scale}px`;
-    const html = `<small>${esc(name)}</small>${esc(text)}`;
+    const html = `<small>${esc(name)}</small>${esc(L(text))}`;
     if (el.innerHTML !== html) el.innerHTML = html;
   }
   setBreakingMeter(balance: number | null, progress: number): void {
@@ -213,7 +213,7 @@ export class UI {
     const reg = REGIONS.find((r) => r.id === g.currentRegion)!;
     const w = g.weather.current;
     const wx = w.kind === 'clear' ? 'Clear' : w.kind[0]!.toUpperCase() + w.kind.slice(1);
-    el('clock').innerHTML = `<div class="date">${g.clock.dateString()}</div>${g.clock.timeString()} · ${Math.round(g.temperatureHere)}°F · ${wx}<br>${reg.name}`;
+    el('clock').innerHTML = `<div class="date">${g.clock.dateString()}</div>${g.clock.timeString()} · ${Math.round(g.temperatureHere)}°F · ${L(wx)}<br>${L(reg.name)}`;
     el('money').textContent = money(p.money);
     const wanted = g.law.get(g.currentRegion);
     el('wanted').innerHTML = wanted.level >= 2 ? `<div class="wanted">WANTED · ${money(wanted.bounty)}</div>` : '';
@@ -280,7 +280,7 @@ export class UI {
     }
     hc.style.display = '';
     const d = h.data;
-    const gait = p.mount === h ? ['', 'Walk', 'Trot', 'Canter', 'Gallop'][h.gaitLevel] : h.brain.label;
+    const gait = L(p.mount === h ? ['', 'Walk', 'Trot', 'Canter', 'Gallop'][h.gaitLevel]! : h.brain.label);
     const cw = conditionWords(d).filter((x) => x !== 'In fine condition').slice(0, 2);
     hc.innerHTML = `<h4>${esc(d.name)}<span>${esc(gait ?? '')}</span></h4>
       ${bar('hp', d.health / maxHealth(d))}${bar('st', d.stamina / Math.max(1, rideStats(d).staminaMax), maxStamina(d) / 100)}
@@ -490,6 +490,9 @@ export class UI {
       if (e.target === m) this.closeModal();
     });
     translateDom(m);
+    // Panels such as the journal, inventory, horse and shop fill the modal after this returns:
+    // translate once more at the end of the task so those text nodes get the dictionary too.
+    queueMicrotask(() => { if (m.isConnected) translateDom(m); });
     this.modalEl = m;
     this.modalName = name;
     this.game?.input && (this.game.input.blocked = true);
@@ -632,14 +635,14 @@ export class UI {
 
   openSaves(saving: boolean): void {
     const saves = listSaves();
-    const p = this.modal('saves', `<h2>${saving ? 'Save Game' : 'Load Game'}</h2><div id="sl"></div>`, 620);
+    const p = this.modal('saves', `<h2>${L(saving ? 'Save Game' : 'Load Game')}</h2><div id="sl"></div>`, 620);
     const sl = p.querySelector('#sl') as HTMLElement;
     const slots = saving ? ['slot1', 'slot2', 'slot3'] : [...new Set([...saves.map((s) => s.slot)])];
     if (!slots.length) sl.innerHTML = '<p class="muted">No saved games.</p>';
     for (const slot of slots) {
       const meta = saves.find((s) => s.slot === slot);
       const r = div(sl, 'row');
-      r.innerHTML = `<div><div class="nm">${slot === 'autosave' ? 'Autosave' : slot.replace('slot', 'Slot ')}</div><div class="ds">${meta ? esc(meta.label) + ' · ' + new Date(meta.savedAt).toLocaleString() : 'Empty'}</div></div>`;
+      r.innerHTML = `<div><div class="nm">${slot === 'autosave' ? L('Autosave') : L('Slot') + ' ' + slot.replace('slot', '')}</div><div class="ds">${meta ? esc(meta.label) + ' · ' + new Date(meta.savedAt).toLocaleString() : L('Empty')}</div></div>`;
       const b = button(r, saving ? 'Save here' : 'Load', 'btn small');
       b.onclick = () => {
         if (saving) {
@@ -751,7 +754,7 @@ export class UI {
     const h = horse ?? (g.mainHorse() && Math.hypot(g.mainHorse()!.x - p.x, g.mainHorse()!.y - p.y) < 120 ? g.mainHorse() : null);
     const render = () => {
       const panel = this.modal('inventory', '', 980);
-      panel.insertAdjacentHTML('beforeend', `<h2>Satchel</h2><div class="sub">Carrying ${p.inv.weight.toFixed(1)} / ${p.inv.capacity} kg · ${money(p.money)}</div><div class="grid2"><div id="pinv"></div><div id="hinv"></div></div>`);
+      panel.insertAdjacentHTML('beforeend', `<h2>Satchel</h2><div class="sub">${tr`Carrying ${p.inv.weight.toFixed(1)} / ${p.inv.capacity} kg · ${money(p.money)}`}</div><div class="grid2"><div id="pinv"></div><div id="hinv"></div></div>`);
       const pinv = panel.querySelector('#pinv') as HTMLElement;
       const cats: [string, string[]][] = [
         ['Weapons', ['weapon']],
@@ -766,7 +769,7 @@ export class UI {
       for (const w of p.weapons) {
         const r = div(pinv, 'row');
         const it = getItem(w);
-        r.innerHTML = `<div><div class="nm">${esc(L(it.name))}${p.weapon === w ? ' <span class="chip">equipped</span>' : ''}</div><div class="ds">${esc(L(it.description))}</div></div>`;
+        r.innerHTML = `<div><div class="nm">${esc(L(it.name))}${p.weapon === w ? ` <span class="chip">${L('equipped')}</span>` : ''}</div><div class="ds">${esc(L(it.description))}</div></div>`;
         button(r, 'Equip', 'btn small').onclick = () => {
           p.weaponIdx = p.weapons.indexOf(w);
           // Selected, not drawn: walking out of a shop with an iron in hand gets the law's attention.
@@ -777,7 +780,7 @@ export class UI {
       for (const [title, cs] of cats.slice(1)) {
         const items = p.inv.entries().filter(([id]) => cs.includes(getItem(id).category));
         if (!items.length) continue;
-        pinv.insertAdjacentHTML('beforeend', `<h3>${title}</h3>`);
+        pinv.insertAdjacentHTML('beforeend', `<h3>${L(title)}</h3>`);
         for (const [id, q] of items) {
           const it = getItem(id);
           const r = div(pinv, 'row');
@@ -797,7 +800,7 @@ export class UI {
             const db = button(r, 'Drop', 'btn small red');
             db.onclick = () => {
               if (db.dataset.armed) { p.inv.remove(id); render(); }
-              else { db.dataset.armed = '1'; db.textContent = 'Drop?'; setTimeout(() => { if (db.isConnected) { delete db.dataset.armed; db.textContent = 'Drop'; } }, 2500); }
+              else { db.dataset.armed = '1'; db.textContent = L('Drop?'); setTimeout(() => { if (db.isConnected) { delete db.dataset.armed; db.textContent = L('Drop'); } }, 2500); }
             };
           }
         }
@@ -809,7 +812,7 @@ export class UI {
       }
       const cap = rideStats(h.data).carry + 10;
       const used = Object.entries(h.data.bagItems).reduce((s, [id, q]) => s + getItem(id).weight * q, 0);
-      hinv.innerHTML = `<h3>${esc(h.data.name)}'s saddlebags</h3><div class="small-note">${used.toFixed(1)} / ${cap.toFixed(0)} kg</div>`;
+      hinv.innerHTML = `<h3>${esc(tr`${h.data.name}'s saddlebags`)}</h3><div class="small-note">${used.toFixed(1)} / ${cap.toFixed(0)} kg</div>`;
       for (const [id, q] of Object.entries(h.data.bagItems)) {
         if (q <= 0) continue;
         const it = getItem(id);
@@ -847,7 +850,7 @@ export class UI {
     if (e.warmth) s.warmthBuff = Math.max(s.warmthBuff, e.warmth);
     p.act(0.8);
     g.audio.play(it.category === 'drink' ? 'drink' : 'eat');
-    this.notify(`You use the ${it.name.toLowerCase()}.`, 'info');
+    this.notify(tr`You use the ${L(it.name).toLowerCase()}.`, 'info');
   }
 
   // --- Horse screen ------------------------------------------------------------------------
@@ -861,8 +864,8 @@ export class UI {
       const panel = this.modal('horse', '', 980);
       const rs = rideStats(d);
       const tabs = own ? ['overview', 'stats', 'gear', 'care', 'history'] : ['overview', 'stats'];
-      panel.innerHTML += `<h2>${esc(d.name)}</h2><div class="sub">${esc(breed.name)} · ${getCoat(d.appearance.coat).name}${d.appearance.pattern !== 'solid' ? ' ' + PATTERN_NAMES[d.appearance.pattern] : ''} · ${d.sex} · ${d.age.toFixed(1)} years${sale ? ` · <b>Asking ${money(sale.price)}</b>` : ''}</div>
-        <div class="tabs">${tabs.map((t) => `<button class="btn small ${t === tab ? 'active' : ''}" data-tab="${t}">${t[0]!.toUpperCase() + t.slice(1)}</button>`).join('')}</div>
+      panel.innerHTML += `<h2>${esc(d.name)}</h2><div class="sub">${esc(L(breed.name))} · ${L(getCoat(d.appearance.coat).name)}${d.appearance.pattern !== 'solid' ? ' ' + L(PATTERN_NAMES[d.appearance.pattern]!) : ''} · ${L(d.sex)} · ${tr`${d.age.toFixed(1)} years`}${sale ? ` · <b>${tr`Asking ${money(sale.price)}`}</b>` : ''}</div>
+        <div class="tabs">${tabs.map((t) => `<button class="btn small ${t === tab ? 'active' : ''}" data-tab="${t}">${L(t[0]!.toUpperCase() + t.slice(1))}</button>`).join('')}</div>
         <div class="grid2"><div><canvas id="hprev" width="${HW * 5}" height="${HH * 5}" style="width:100%;image-rendering:pixelated;background:radial-gradient(circle at 50% 70%,#c9b080,#7a5e3a);border:2px solid #4a3526"></canvas><div id="hleft"></div></div><div id="hright"></div></div>`;
       panel.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = (b as HTMLElement).dataset.tab!; render(); }));
       panel.querySelector('[data-close]')!.addEventListener('click', () => this.closeModal());
@@ -882,10 +885,10 @@ export class UI {
       anim();
       const left = panel.querySelector('#hleft') as HTMLElement;
       const right = panel.querySelector('#hright') as HTMLElement;
-      left.innerHTML = `<div style="margin-top:8px">${d.traits.map((t) => `<span class="chip" title="${esc(getTrait(t).description)}">${getTrait(t).name}</span>`).join('')} ${conditionWords(d).map((w) => `<span class="chip ${w === 'In fine condition' ? '' : 'warn'}">${esc(w)}</span>`).join('')}</div>
-        <p class="muted" style="font-size:14px">${esc(breed.description)}</p>`;
+      left.innerHTML = `<div style="margin-top:8px">${d.traits.map((t) => `<span class="chip" title="${esc(L(getTrait(t).description))}">${L(getTrait(t).name)}</span>`).join('')} ${conditionWords(d).map((w) => `<span class="chip ${w === 'In fine condition' ? '' : 'warn'}">${esc(L(w))}</span>`).join('')}</div>
+        <p class="muted" style="font-size:14px">${esc(L(breed.description))}</p>`;
       if (sale) {
-        const b = button(left, `Buy for ${money(sale.price)}`, 'btn gold');
+        const b = button(left, tr`Buy for ${money(sale.price)}`, 'btn gold');
         b.disabled = g.player.money < sale.price;
         b.onclick = () => {
           const err = g.economy.buyHorse(sale.shop, d.id);
@@ -898,7 +901,7 @@ export class UI {
       }
       if (tab === 'overview') {
         const val = appraise(d).value;
-        right.innerHTML = `<h3>Bond</h3><div class="statline"><span>${bondName(d)} (${bondLevel(d)}/5)</span><div class="statbar good"><i style="width:${bondLevel(d) >= 5 ? 100 : bondProgress(d) * 100}%"></i></div><span>${Math.round(d.trust)} trust</span></div>
+        right.innerHTML = `<h3>Bond</h3><div class="statline"><span>${L(bondName(d))} (${bondLevel(d)}/5)</span><div class="statbar good"><i style="width:${bondLevel(d) >= 5 ? 100 : bondProgress(d) * 100}%"></i></div><span>${tr`${Math.round(d.trust)} trust`}</span></div>
           <h3>Condition</h3>
           ${statline('Health', d.health / maxHealth(d), `${Math.round(d.health)}/${maxHealth(d)}`)}
           ${statline('Stamina', d.stamina / rs.staminaMax, `${Math.round(d.stamina)}/${rs.staminaMax}`)}
@@ -908,10 +911,10 @@ export class UI {
           ${statline('Cleanliness', d.cleanliness / 100, Math.round(d.cleanliness) + '%')}
           ${statline('Hooves', d.hoof / 100, Math.round(d.hoof) + '%')}
           ${statline('Calm', 1 - d.stress / 100, Math.round(100 - d.stress) + '%')}
-          <h3>Details</h3><div class="kv"><b>Personality</b><span>${d.traits.map((t) => getTrait(t).description).join(' ')}</span>
-          <b>Favourite treat</b><span>${own || bondLevel(d) >= 2 ? esc(L(getItem(d.favoriteFood).name)) : 'Unknown — spend time together'}</span>
-          <b>Dislikes</b><span>${own && bondLevel(d) >= 3 ? esc(d.dislike) : own ? 'Not yet known (bond 3)' : 'Unknown'}</span>
-          <b>Distance ridden</b><span>${d.kmRidden.toFixed(1)} km</span><b>Fair value</b><span>${money(val)}</span><b>Mood</b><span>${esc(h.brain.label)}</span></div>`;
+          <h3>Details</h3><div class="kv"><b>Personality</b><span>${d.traits.map((t) => L(getTrait(t).description)).join(' ')}</span>
+          <b>Favourite treat</b><span>${own || bondLevel(d) >= 2 ? esc(L(getItem(d.favoriteFood).name)) : L('Unknown — spend time together')}</span>
+          <b>Dislikes</b><span>${own && bondLevel(d) >= 3 ? esc(L(d.dislike)) : own ? L('Not yet known (bond 3)') : L('Unknown')}</span>
+          <b>Distance ridden</b><span>${d.kmRidden.toFixed(1)} km</span><b>Fair value</b><span>${money(val)}</span><b>Mood</b><span>${esc(L(h.brain.label))}</span></div>`;
         if (own) {
           const wrap = div(right, 'opt-row');
           wrap.innerHTML = `<label for="rename">Name</label><input class="txt" id="rename" maxlength="24" value="${esc(d.name)}" style="width:60%">`;
@@ -926,16 +929,16 @@ export class UI {
         }
       } else if (tab === 'stats') {
         const keys: [string, keyof typeof breed.stats][] = [['Top speed', 'speed'], ['Acceleration', 'acceleration'], ['Stamina', 'stamina'], ['Recovery', 'recovery'], ['Agility', 'agility'], ['Handling', 'handling'], ['Jumping', 'jumping'], ['Endurance', 'endurance'], ['Strength', 'strength'], ['Courage', 'courage'], ['Responsiveness', 'responsiveness'], ['Toughness', 'health'], ['Carrying', 'carry'], ['Sure-footedness', 'trail'], ['Temperament', 'temperament'], ['Gait comfort', 'comfort']];
-        right.innerHTML = `<h3>Abilities</h3>${keys.map(([n, k]) => { const v = rawStat(d, k); return statline(n, v / 11, statWord(v)); }).join('')}
+        right.innerHTML = `<h3>Abilities</h3>${keys.map(([n, k]) => { const v = rawStat(d, k); return statline(n, v / 11, L(statWord(v))); }).join('')}
           <h3>Training</h3>${statline('Groundwork', d.training.groundwork / 100, Math.round(d.training.groundwork) + '')}${statline('Under saddle', d.training.saddle / 100, Math.round(d.training.saddle) + '')}${statline('Conditioning', d.training.speed / 100, Math.round(d.training.speed) + '')}${statline('Jumping', d.training.jumping / 100, Math.round(d.training.jumping) + '')}${statline('Steady (gunfire)', d.training.desensitised / 100, Math.round(d.training.desensitised) + '')}
-          <h3>In the saddle</h3><div class="kv"><b>Gallop</b><span>${(rs.gaitSpeed.gallop / 16 * 2 * 2.237 * 0.62).toFixed(0)} mph</span><b>Max gait now</b><span>${rs.maxGait}</span><b>Fear response</b><span>${rs.fear < 0.6 ? 'Steady' : rs.fear < 1 ? 'Alert' : 'Jumpy'}</span><b>Obedience</b><span>${Math.round(rs.obedience * 100)}%</span><b>Saddlebag capacity</b><span>${rs.carry.toFixed(0)} kg</span></div>`;
+          <h3>In the saddle</h3><div class="kv"><b>Gallop</b><span>${tr`${(rs.gaitSpeed.gallop / 16 * 2 * 2.237 * 0.62).toFixed(0)} mph`}</span><b>Max gait now</b><span>${L(rs.maxGait)}</span><b>Fear response</b><span>${L(rs.fear < 0.6 ? 'Steady' : rs.fear < 1 ? 'Alert' : 'Jumpy')}</span><b>Obedience</b><span>${Math.round(rs.obedience * 100)}%</span><b>Saddlebag capacity</b><span>${rs.carry.toFixed(0)} kg</span></div>`;
       } else if (tab === 'gear') {
         const slots: HorseSlot[] = ['saddle', 'bridle', 'blanket', 'bags', 'shoes', 'bedroll', 'decoration'];
         right.innerHTML = '<h3>Tack</h3>';
         for (const s of slots) {
           const cur = d.gear[s];
           const r = div(right, 'row');
-          r.innerHTML = `<div><div class="nm">${s[0]!.toUpperCase() + s.slice(1)}: ${cur ? esc(L(getItem(cur).name)) : '<i>none</i>'}</div>${cur ? `<div class="ds">Condition ${Math.round(d.gearCondition[s] ?? 100)}%</div>` : ''}</div>`;
+          r.innerHTML = `<div><div class="nm">${L(s[0]!.toUpperCase() + s.slice(1))}: ${cur ? esc(L(getItem(cur).name)) : `<i>${L('none')}</i>`}</div>${cur ? `<div class="ds">${tr`Condition ${Math.round(d.gearCondition[s] ?? 100)}%`}</div>` : ''}</div>`;
           if (cur) button(r, 'Remove', 'btn small').onclick = () => {
             g.ownedGear[cur] = (g.ownedGear[cur] ?? 0) + 1;
             delete d.gear[s];
@@ -944,7 +947,7 @@ export class UI {
           };
           const options = Object.entries(g.ownedGear).filter(([id, n]) => n > 0 && getItem(id).gear?.slot === s);
           for (const [id] of options) {
-            button(r, `Fit ${getItem(id).name}`, 'btn small gold').onclick = () => {
+            button(r, tr`Fit ${L(getItem(id).name)}`, 'btn small gold').onclick = () => {
               if (cur) g.ownedGear[cur] = (g.ownedGear[cur] ?? 0) + 1;
               g.ownedGear[id]!--;
               d.gear[s] = id;
@@ -956,11 +959,11 @@ export class UI {
         }
         right.insertAdjacentHTML('beforeend', '<p class="small-note">Saddles change stamina use and comfort, bags add carrying capacity, shoes protect hooves on rock, blankets keep a horse warm in the high country. Gear wears with use — a smithy or stable can mend it.</p>');
       } else if (tab === 'care') {
-        right.innerHTML = `<h3>Injuries</h3>${d.injuries.length ? d.injuries.map((i) => `<div class="row"><span>${INJURY_NAMES[i.kind]}</span><span class="pr">${Math.round(i.severity)}% ${i.treated ? '(treated)' : '(untreated)'}</span></div>`).join('') : '<p class="muted">No injuries.</p>'}
+        right.innerHTML = `<h3>Injuries</h3>${d.injuries.length ? d.injuries.map((i) => `<div class="row"><span>${L(INJURY_NAMES[i.kind])}</span><span class="pr">${Math.round(i.severity)}% ${L(i.treated ? '(treated)' : '(untreated)')}</span></div>`).join('') : '<p class="muted">No injuries.</p>'}
           <p class="small-note">Injuries heal with rest and time; treated wounds heal three times faster. Stabling a horse heals it fastest. A lame horse cannot gallop.</p>
           <h3>Care guide</h3><p style="font-size:15px">Brush to keep the coat clean, feed hay or oats when hungry, water at troughs and streams, pick hooves on rocky country. Feed its favourite treat for extra trust. Avoid riding it to exhaustion, gallops over rocks, and gunfire near its head.</p>`;
       } else if (tab === 'history') {
-        right.innerHTML = `<h3>Life story</h3>${d.history.slice().reverse().map((e) => `<div class="row"><span class="ds">Day ${e.day}</span><span>${esc(e.text)}</span></div>`).join('') || '<p class="muted">Nothing yet.</p>'}`;
+        right.innerHTML = `<h3>Life story</h3>${d.history.slice().reverse().map((e) => `<div class="row"><span class="ds">${tr`Day ${e.day}`}</span><span>${esc(L(e.text))}</span></div>`).join('') || '<p class="muted">Nothing yet.</p>'}`;
       }
     };
     render();
@@ -988,8 +991,8 @@ export class UI {
       if (def.services.length) tabs.push('services');
       if (def.horses || def.services.includes('sellHorse') || def.services.includes('stable')) tabs.push('stable');
       if (!tabs.includes(tab)) tab = tabs[0] ?? 'buy';
-      panel.innerHTML += `<h2>${esc(def.name)}</h2><div class="sub">${money(g.player.money)} · ${REGIONS.find((r) => r.id === def.region)?.name}</div>
-        <div class="tabs">${tabs.map((t) => `<button class="btn small ${t === tab ? 'active' : ''}" data-tab="${t}">${({ buy: 'Buy', sell: 'Sell', services: 'Services', stable: 'Horses & stable' } as Record<string, string>)[t]}</button>`).join('')}</div><div id="sbody"></div>`;
+      panel.innerHTML += `<h2>${esc(def.name)}</h2><div class="sub">${money(g.player.money)} · ${L(REGIONS.find((r) => r.id === def.region)?.name ?? '')}</div>
+        <div class="tabs">${tabs.map((t) => `<button class="btn small ${t === tab ? 'active' : ''}" data-tab="${t}">${L(({ buy: 'Buy', sell: 'Sell', services: 'Services', stable: 'Horses & stable' } as Record<string, string>)[t]!)}</button>`).join('')}</div><div id="sbody"></div>`;
       panel.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = (b as HTMLElement).dataset.tab!; render(); }));
       panel.querySelector('[data-close]')!.addEventListener('click', () => this.closeModal());
       const body = panel.querySelector('#sbody') as HTMLElement;
@@ -1002,7 +1005,7 @@ export class UI {
           const r = div(body, 'row');
           const rm = g.economy.regionalMul(def, id);
           const hint = rm < 0.9 ? `<span class="small-note" style="color:#5a7a3a"> · ${L('made around here — cheap')}</span>` : rm > 1.1 ? `<span class="small-note" style="color:#9a4a2a"> · ${L('scarce here — dear')}</span>` : '';
-          r.innerHTML = `<div><div class="nm">${esc(L(it.name))} <span class="small-note">(${q} in stock · you have ${owned})</span>${hint}</div><div class="ds">${esc(L(it.description))}${it.gear ? ' ' + gearDesc(it.gear) : ''}</div></div><div class="pr">${money(price)}</div>`;
+          r.innerHTML = `<div><div class="nm">${esc(L(it.name))} <span class="small-note">${tr`(${q} in stock · you have ${owned})`}</span>${hint}</div><div class="ds">${esc(L(it.description))}${it.gear ? ' ' + gearDesc(it.gear) : ''}</div></div><div class="pr">${money(price)}</div>`;
           const b = button(r, 'Buy', 'btn small');
           b.disabled = q <= 0 || g.player.money < price;
           b.onclick = () => {
@@ -1040,7 +1043,7 @@ export class UI {
       if (!def.services.includes(s)) return;
       const price = g.economy.servicePrice(s);
       const r = div(body, 'row');
-      r.innerHTML = `<div><div class="nm">${label}</div><div class="ds">${desc}</div></div><div class="pr">${price ? money(price) : ''}</div>`;
+      r.innerHTML = `<div><div class="nm">${L(label)}</div><div class="ds">${L(desc)}</div></div><div class="pr">${price ? money(price) : ''}</div>`;
       const b = button(r, 'Pay', 'btn small');
       b.disabled = g.player.money < price || (needHorse && !near);
       b.onclick = () => {
@@ -1063,7 +1066,7 @@ export class UI {
     svc('repair', 'Mend tack', 'Restore all equipment to full condition.', () => { for (const s of Object.keys(near!.data.gear)) near!.data.gearCondition[s as HorseSlot] = 100; return null; });
     if (def.services.includes('train')) {
       body.insertAdjacentHTML('beforeend', '<h3>Training (1 hour each)</h3>');
-      const tr = (key: 'groundwork' | 'desensitised' | 'jumping' | 'speed' | 'saddle', label: string, desc: string) =>
+      const trainRow = (key: 'groundwork' | 'desensitised' | 'jumping' | 'speed' | 'saddle', label: string, desc: string) =>
         svc('train', label, desc, () => {
           const d = near!.data;
           const cur = d.training[key];
@@ -1075,20 +1078,20 @@ export class UI {
           g.player.skills.gain('horsemanship', 8);
           g.advanceTime(60);
           near!.refreshStats();
-          this.notify(`${d.name}: ${label.toLowerCase()} improved.`, 'horse');
+          this.notify(tr`${d.name}: ${L(label).toLowerCase()} improved.`, 'horse');
           return null;
         });
-      tr('groundwork', 'Groundwork', 'Leading, standing, yielding. Improves obedience and mounting.');
-      tr('desensitised', 'Desensitising', 'Tarps, rattles, blank shots. Steadies it under gunfire and near predators.');
-      tr('jumping', 'Jumping', 'Cavaletti and logs. Better at clearing fences.');
-      tr('speed', 'Conditioning', 'Hill gallops. More stamina and speed.');
-      tr('saddle', 'Saddle work', 'Calm, balanced work under a rider. Ends bucking.');
+      trainRow('groundwork', 'Groundwork', 'Leading, standing, yielding. Improves obedience and mounting.');
+      trainRow('desensitised', 'Desensitising', 'Tarps, rattles, blank shots. Steadies it under gunfire and near predators.');
+      trainRow('jumping', 'Jumping', 'Cavaletti and logs. Better at clearing fences.');
+      trainRow('speed', 'Conditioning', 'Hill gallops. More stamina and speed.');
+      trainRow('saddle', 'Saddle work', 'Calm, balanced work under a rider. Ends bucking.');
     }
     if (def.services.includes('customize') && near) {
       const d = near.data;
       body.insertAdjacentHTML('beforeend', '<h3>Mane & tail</h3>');
       const r = div(body, 'row');
-      r.innerHTML = `<div class="nm">Mane: ${d.appearance.maneStyle} · Tail: ${d.appearance.tailStyle} · Length ${Math.round(d.appearance.maneLength * 100)}%</div>`;
+      r.innerHTML = `<div class="nm">${tr`Mane: ${L(d.appearance.maneStyle)} · Tail: ${L(d.appearance.tailStyle)} · Length ${Math.round(d.appearance.maneLength * 100)}%`}</div>`;
       button(r, 'Mane style', 'btn small').onclick = () => { const i = MANE_STYLES.indexOf(d.appearance.maneStyle as (typeof MANE_STYLES)[number]); d.appearance.maneStyle = MANE_STYLES[(i + 1) % MANE_STYLES.length]!; g.player.money -= 0.5; rerender(); };
       button(r, 'Tail style', 'btn small').onclick = () => { const i = TAIL_STYLES.indexOf(d.appearance.tailStyle as (typeof TAIL_STYLES)[number]); d.appearance.tailStyle = TAIL_STYLES[(i + 1) % TAIL_STYLES.length]!; g.player.money -= 0.5; rerender(); };
       button(r, 'Trim', 'btn small').onclick = () => { d.appearance.maneLength = Math.max(0.6, d.appearance.maneLength - 0.15); g.player.money -= 0.5; rerender(); };
@@ -1113,7 +1116,7 @@ export class UI {
         const fare = Math.round(dist / 40) + 1;
         const hours = Math.max(1, Math.round(dist / 45));
         const r = div(body, 'row');
-        r.innerHTML = `<div><div class="nm">${esc(dest.name)}</div><div class="ds">${hours} hours on the road</div></div><div class="pr">${money(fare)}</div>`;
+        r.innerHTML = `<div><div class="nm">${esc(dest.name)}</div><div class="ds">${tr`${hours} hours on the road`}</div></div><div class="pr">${money(fare)}</div>`;
         const b = button(r, 'Travel', 'btn small');
         b.disabled = g.player.money < fare || g.law.isWanted(g.currentRegion);
         b.onclick = () => {
@@ -1150,7 +1153,7 @@ export class UI {
       for (const hd of g.economy.horsesFor(shopId)) {
         const price = g.economy.horseAsk(shopId, hd);
         const r = div(body, 'row');
-        r.innerHTML = `<div><div class="nm">${esc(hd.name)} — ${esc(getBreed(hd.breedId).name)}</div><div class="ds">${getCoat(hd.appearance.coat).name} ${hd.appearance.pattern !== 'solid' ? PATTERN_NAMES[hd.appearance.pattern] : ''} · ${hd.sex} · ${Math.floor(hd.age)} yrs · ${hd.traits.map((t) => getTrait(t).name).join(', ')}</div></div><div class="pr">${money(price)}</div>`;
+        r.innerHTML = `<div><div class="nm">${esc(hd.name)} — ${esc(L(getBreed(hd.breedId).name))}</div><div class="ds">${L(getCoat(hd.appearance.coat).name)} ${hd.appearance.pattern !== 'solid' ? L(PATTERN_NAMES[hd.appearance.pattern]!) : ''} · ${L(hd.sex)} · ${tr`${Math.floor(hd.age)} yrs`} · ${hd.traits.map((t) => L(getTrait(t).name)).join(', ')}</div></div><div class="pr">${money(price)}</div>`;
         const he = g.horses.get(hd.id);
         if (he) button(r, 'Inspect', 'btn small').onclick = () => this.openHorse(he, { shop: shopId, price });
         const b = button(r, 'Buy', 'btn small gold');
@@ -1171,11 +1174,11 @@ export class UI {
         const near = Math.hypot(h.x - g.player.x, h.y - g.player.y) < 300;
         const offer = g.economy.horseOffer(shopId, h.data);
         const r = div(body, 'row');
-        r.innerHTML = `<div class="nm">${esc(h.data.name)} <span class="small-note">${esc(getBreed(h.data.breedId).name)}${h.data.owner === 'stolen' ? ' · stolen' : ''}</span></div><div class="pr">${money(offer)}</div>`;
+        r.innerHTML = `<div class="nm">${esc(h.data.name)} <span class="small-note">${esc(L(getBreed(h.data.breedId).name))}${h.data.owner === 'stolen' ? ` · ${L('stolen')}` : ''}</span></div><div class="pr">${money(offer)}</div>`;
         const b = button(r, 'Sell', 'btn small red');
         b.disabled = !near || g.player.mount === h;
-        b.onclick = () => g.ui.choice(`Sell ${h.data.name} for ${money(offer)}? This can't be undone.`, [
-          { label: 'Sell', enabled: true, run: () => { const e = g.economy.sellHorse(shopId, h.id); if (e) this.notify(e, 'bad'); else this.notify(`You said goodbye to ${h.data.name}.`, 'horse'); } },
+        b.onclick = () => g.ui.choice(tr`Sell ${h.data.name} for ${money(offer)}? This can't be undone.`, [
+          { label: 'Sell', enabled: true, run: () => { const e = g.economy.sellHorse(shopId, h.id); if (e) this.notify(e, 'bad'); else this.notify(tr`You said goodbye to ${h.data.name}.`, 'horse'); } },
           { label: 'Keep', enabled: true, run: () => {} },
         ]);
       }
@@ -1183,11 +1186,11 @@ export class UI {
     if (shopId === 'ranch_brannigan') {
       const mares = owned.filter((h) => h.data.sex === 'mare' && h.data.age >= 4);
       const sires = owned.filter((h) => h.data.sex === 'stallion' && h.data.age >= 4);
-      body.insertAdjacentHTML('beforeend', `<h3>Breeding</h3><p class="small-note">Bring a mare and a stallion you own to the ranch. Foals take after both parents and arrive in a few days. Pregnant mares: ${g.pregnancies.length ? g.pregnancies.map((p) => esc(g.horses.get(p.damId)?.data.name ?? '?') + ' (day ' + p.dueDay + ')').join(', ') : 'none'}.</p>`);
+      body.insertAdjacentHTML('beforeend', `<h3>Breeding</h3><p class="small-note">${L('Bring a mare and a stallion you own to the ranch. Foals take after both parents and arrive in a few days.')} ${tr`Pregnant mares: ${g.pregnancies.length ? g.pregnancies.map((p) => esc(g.horses.get(p.damId)?.data.name ?? '?') + ' ' + tr`(day ${p.dueDay})`).join(', ') : L('none')}.`}</p>`);
       if (!mares.length || !sires.length) body.insertAdjacentHTML('beforeend', '<p class="muted">You need both a mare and a stallion, four years or older.</p>');
       else {
         const r = div(body, 'row');
-        r.innerHTML = `<label for="dam">Mare</label><select id="dam">${mares.map((h) => `<option value="${h.id}">${esc(h.data.name)} (${esc(getBreed(h.data.breedId).name)})</option>`).join('')}</select><label for="sire">Stallion</label><select id="sire">${sires.map((h) => `<option value="${h.id}">${esc(h.data.name)} (${esc(getBreed(h.data.breedId).name)})</option>`).join('')}</select>`;
+        r.innerHTML = `<label for="dam">Mare</label><select id="dam">${mares.map((h) => `<option value="${h.id}">${esc(h.data.name)} (${esc(L(getBreed(h.data.breedId).name))})</option>`).join('')}</select><label for="sire">Stallion</label><select id="sire">${sires.map((h) => `<option value="${h.id}">${esc(h.data.name)} (${esc(L(getBreed(h.data.breedId).name))})</option>`).join('')}</select>`;
         button(r, 'Breed', 'btn small gold').onclick = () => {
           const err = g.breed((r.querySelector('#dam') as HTMLSelectElement).value, (r.querySelector('#sire') as HTMLSelectElement).value);
           if (err) this.notify(err, 'bad');
@@ -1196,10 +1199,10 @@ export class UI {
       }
     }
     if (def.services.includes('stable')) {
-      body.insertAdjacentHTML('beforeend', `<h3>Your horses</h3><p class="small-note">Choose which horse is your main horse (the one that answers your whistle). Stabling costs ${money(SERVICE_PRICES.stable)}/day: the horse is fed, watered and heals fast.</p>`);
+      body.insertAdjacentHTML('beforeend', `<h3>Your horses</h3><p class="small-note">${L('Choose which horse is your main horse (the one that answers your whistle).')} ${tr`Stabling costs ${money(SERVICE_PRICES.stable)}/day: the horse is fed, watered and heals fast.`}</p>`);
       for (const h of owned) {
         const r = div(body, 'row');
-        r.innerHTML = `<div class="nm">${esc(h.data.name)}${g.player.mainHorseId === h.id ? ' <span class="chip">main</span>' : ''}</div><div class="ds">${conditionWords(h.data).join(', ')}</div>`;
+        r.innerHTML = `<div class="nm">${esc(h.data.name)}${g.player.mainHorseId === h.id ? ` <span class="chip">${L('main')}</span>` : ''}</div><div class="ds">${conditionWords(h.data).map((w) => L(w)).join(', ')}</div>`;
         if (g.player.mainHorseId !== h.id) button(r, 'Make main', 'btn small').onclick = () => { g.player.mainHorseId = h.id; rerender(); };
         const near = Math.hypot(h.x - g.player.x, h.y - g.player.y) < 300;
         if (near && g.player.mount !== h) button(r, 'Stable overnight', 'btn small').onclick = () => {
@@ -1208,7 +1211,7 @@ export class UI {
           h.data.health = maxHealth(h.data);
           for (const i of h.data.injuries) { i.severity *= 0.4; i.treated = true; }
           grantBond(h.data, 'shelter', g.clock.day);
-          this.notify(`${h.data.name} is fed, watered and rested.`, 'horse');
+          this.notify(tr`${h.data.name} is fed, watered and rested.`, 'horse');
           rerender();
         };
       }
@@ -1358,7 +1361,7 @@ export class UI {
     });
     // Towns and ranches you have ridden into count as discoveries too.
     const visited = SETTLEMENTS.filter((st) => g.flags[`visited_${st.id}`]).length;
-    (panel.querySelector('#legend') as HTMLElement).textContent = `Discovered ${g.discovered.size + visited}/${POIS.length + SETTLEMENTS.length} places · ${visited} settlements, ${g.discovered.size} landmarks.`;
+    (panel.querySelector('#legend') as HTMLElement).textContent = tr`Discovered ${g.discovered.size + visited}/${POIS.length + SETTLEMENTS.length} places · ${visited} settlements, ${g.discovered.size} landmarks.`;
   }
 
   // --- Journal -------------------------------------------------------------------------------------
@@ -1396,13 +1399,13 @@ export class UI {
         if (!docs.length) jb.innerHTML = '<p class="muted">Letters, papers and notes you find will be kept here.</p>';
         for (const d of docs) {
           const r = div(jb, 'row');
-          r.innerHTML = `<div class="nm">${esc(d.title)} <span class="small-note">${d.kind}</span></div>`;
+          r.innerHTML = `<div class="nm">${esc(L(d.title))} <span class="small-note">${L(d.kind)}</span></div>`;
           button(r, 'Read', 'btn small').onclick = () => this.openLore(d.id);
         }
       } else {
         for (const h of g.ownedHorses()) {
           const r = div(jb, 'row');
-          r.innerHTML = `<div><div class="nm">${esc(h.data.name)}</div><div class="ds">${esc(g.horseSummary(h))} · bond ${bondName(h.data)} · ${h.data.kmRidden.toFixed(1)} km together</div></div>`;
+          r.innerHTML = `<div><div class="nm">${esc(h.data.name)}</div><div class="ds">${esc(tr`${g.horseSummary(h)} · bond ${L(bondName(h.data))} · ${h.data.kmRidden.toFixed(1)} km together`)}</div></div>`;
           button(r, 'Open', 'btn small').onclick = () => this.openHorse(h);
         }
       }
@@ -1421,7 +1424,7 @@ export class UI {
     const dirName = (x: number, y: number) => ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][(Math.round(Math.atan2(y - p.y, x - p.x) / (Math.PI / 4)) + 8) % 8]!;
     const section = (title: string) => {
       const h = document.createElement('h3');
-      h.textContent = title;
+      h.textContent = L(title);
       jb.appendChild(h);
     };
     const row = (html: string, track?: { x: number; y: number } | null, label = 'Track') => {
@@ -1443,7 +1446,7 @@ export class UI {
       const t = g.jobs.template(job.offer.templateId);
       const left = Math.round(job.deadline - g.clock.minutes);
       const dest = job.offer.destId ? g.jobs.boardPx(job.offer.destId) : g.jobs.boardPx(job.offer.boardId);
-      row(`<div class="nm">${esc(t.title)}</div><div class="ds">${esc(g.jobs.detail(job.offer))} · pays about ${money(g.jobs.quote(job.offer))} · ${left > 0 ? `${left} min left` : 'overdue'}</div>`, dest);
+      row(`<div class="nm">${esc(L(t.title))}</div><div class="ds">${esc(g.jobs.detail(job.offer))} · ${tr`pays about ${money(g.jobs.quote(job.offer))}`} · ${left > 0 ? tr`${left} min left` : L('overdue')}</div>`, dest);
     }
     // Side quests not started yet, by the people who give them.
     const open = [...g.quests.defs.values()].filter((q) => q.kind !== 'main' && !g.quests.state(q.id) && q.giver);
@@ -1452,8 +1455,8 @@ export class UI {
       for (const q of open.slice(0, 6)) {
         const def = g.content.NPCS.find((n) => n.id === q.giver);
         const loc = g.npcLocation(q.giver!);
-        const where = SETTLEMENTS.find((st) => st.id === def?.settlement)?.name ?? 'the territory';
-        row(`<div class="nm">${esc(def?.name ?? q.giver!)} <span class="small-note">${esc(where)}${loc ? ` · ${dist(loc.x, loc.y)} yds ${dirName(loc.x, loc.y)}` : ''}</span></div><div class="ds">${esc(L(def?.occupation ?? ''))}</div>`, loc);
+        const where = L(SETTLEMENTS.find((st) => st.id === def?.settlement)?.name ?? 'the territory');
+        row(`<div class="nm">${esc(def?.name ?? q.giver!)} <span class="small-note">${esc(where)}${loc ? ` · ${tr`${dist(loc.x, loc.y)} yds ${L(dirName(loc.x, loc.y))}`}` : ''}</span></div><div class="ds">${esc(L(def?.occupation ?? ''))}</div>`, loc);
       }
     }
     // Notice boards with work today.
@@ -1463,19 +1466,19 @@ export class UI {
       .slice(0, 4);
     if (boards.length) {
       section('Work on offer');
-      for (const x of boards) row(`<div class="nm">${esc(x.b.name)}</div><div class="ds">${x.n} job${x.n > 1 ? 's' : ''} posted today · ${dist(x.px!.x, x.px!.y)} yds ${dirName(x.px!.x, x.px!.y)}</div>`, x.px!);
+      for (const x of boards) row(`<div class="nm">${esc(x.b.name)}</div><div class="ds">${x.n > 1 ? tr`${x.n} jobs posted today` : L('1 job posted today')} · ${tr`${dist(x.px!.x, x.px!.y)} yds ${L(dirName(x.px!.x, x.px!.y))}`}</div>`, x.px!);
     }
     // Exploration.
     const visited = SETTLEMENTS.filter((st) => g.flags[`visited_${st.id}`]).length;
     const unknownTowns = SETTLEMENTS.filter((st) => !g.flags[`visited_${st.id}`]).sort((a, b) => Math.hypot(a.x * 16 - p.x, a.y * 16 - p.y) - Math.hypot(b.x * 16 - p.x, b.y * 16 - p.y));
     const unknownPois = POIS.filter((q) => !g.discovered.has(q.id)).sort((a, b) => Math.hypot(a.x * 16 - p.x, a.y * 16 - p.y) - Math.hypot(b.x * 16 - p.x, b.y * 16 - p.y));
     section('The territory');
-    row(`<div class="nm">${g.discovered.size + visited} of ${POIS.length + SETTLEMENTS.length} places found</div><div class="ds">${unknownTowns[0] ? `A settlement you haven't visited lies ${dirName(unknownTowns[0].x * 16, unknownTowns[0].y * 16)}, about ${dist(unknownTowns[0].x * 16, unknownTowns[0].y * 16)} yds.` : 'You have visited every settlement.'}${unknownPois[0] ? ` Something worth finding lies ${dirName(unknownPois[0].x * 16, unknownPois[0].y * 16)} of here.` : ''}</div>`, unknownTowns[0] ? { x: unknownTowns[0].x * 16, y: unknownTowns[0].y * 16 } : null, 'Ride there');
-    if (g.flags['pale_mare_known'] && !g.flags['pale_mare_tamed']) row(`<div class="nm">The Pale Mare</div><div class="ds">Runs with the mustangs on Mustang Flats. Nobody has caught her.</div>`, { x: 190 * 16, y: 390 * 16 });
+    row(`<div class="nm">${tr`${g.discovered.size + visited} of ${POIS.length + SETTLEMENTS.length} places found`}</div><div class="ds">${unknownTowns[0] ? tr`A settlement you haven't visited lies ${L(dirName(unknownTowns[0].x * 16, unknownTowns[0].y * 16))}, about ${dist(unknownTowns[0].x * 16, unknownTowns[0].y * 16)} yds.` : L('You have visited every settlement.')}${unknownPois[0] ? ' ' + tr`Something worth finding lies ${L(dirName(unknownPois[0].x * 16, unknownPois[0].y * 16))} of here.` : ''}</div>`, unknownTowns[0] ? { x: unknownTowns[0].x * 16, y: unknownTowns[0].y * 16 } : null, 'Ride there');
+    if (g.flags['pale_mare_known'] && !g.flags['pale_mare_tamed']) row(`<div class="nm">${L('The Pale Mare')}</div><div class="ds">${L('Runs with the mustangs on Mustang Flats. Nobody has caught her.')}</div>`, { x: 190 * 16, y: 390 * 16 });
     const horses = g.ownedHorses();
     if (horses.length) {
       const h = horses[0]!;
-      row(`<div class="nm">${esc(h.data.name)}</div><div class="ds">Bond ${bondName(h.data)}. Care, long rides and time together deepen it; stables train and breed.</div>`);
+      row(`<div class="nm">${esc(h.data.name)}</div><div class="ds">${tr`Bond ${L(bondName(h.data))}.`} ${L('Care, long rides and time together deepen it; stables train and breed.')}</div>`);
     }
   }
 
@@ -1483,7 +1486,7 @@ export class UI {
     const d = this.game.content.LORE.find((l) => l.id === id);
     if (!d) return;
     this.game.unlockLore(id);
-    this.modal('lore', `<h2>${esc(d.title)}</h2><div class="sub">${d.kind}</div><div class="lore ${d.kind === 'newspaper' ? 'newspaper' : ''}">${esc(d.text)}</div>`, 760);
+    this.modal('lore', `<h2>${esc(L(d.title))}</h2><div class="sub">${L(d.kind)}</div><div class="lore ${d.kind === 'newspaper' ? 'newspaper' : ''}">${esc(L(d.text))}</div>`, 760);
   }
 
   // --- Character -------------------------------------------------------------------------------------
@@ -1493,13 +1496,13 @@ export class UI {
     const reps = Object.entries(REP_LABELS)
       .map(([k, label]) => {
         const v = g.rep.get(k as never);
-        return `<div class="statline"><span>${label}</span><div class="statbar ${v >= 0 ? 'good' : 'bad'}"><i style="width:${Math.abs(v)}%"></i></div><span>${v > 0 ? '+' : ''}${Math.round(v)}</span></div>`;
+        return `<div class="statline"><span>${L(label)}</span><div class="statbar ${v >= 0 ? 'good' : 'bad'}"><i style="width:${Math.abs(v)}%"></i></div><span>${v > 0 ? '+' : ''}${Math.round(v)}</span></div>`;
       })
       .join('');
     const skills = (Object.keys(SKILL_INFO) as SkillId[])
-      .map((s) => `<div class="statline" title="${esc(SKILL_INFO[s].perLevel)}"><span>${L(SKILL_INFO[s].name)} ${p.skills.level(s)}</span><div class="statbar"><i style="width:${p.skills.progress(s) * 100}%"></i></div><span class="small-note">${Math.round(p.skills.xp[s])} xp</span></div>`)
+      .map((s) => `<div class="statline" title="${esc(SKILL_INFO[s].perLevel)}"><span>${L(SKILL_INFO[s].name)} ${p.skills.level(s)}</span><div class="statbar"><i style="width:${p.skills.progress(s) * 100}%"></i></div><span class="small-note">${tr`${Math.round(p.skills.xp[s])} xp`}</span></div>`)
       .join('');
-    const wanted = Object.entries(g.law.wanted).filter(([, w]) => w.level >= 1).map(([r, w]) => `<div class="row"><span>${REGIONS.find((x) => x.id === r)?.name}</span><span class="pr">${money(w.bounty)} · ${w.crimes.slice(-3).join(', ')}</span></div>`).join('');
+    const wanted = Object.entries(g.law.wanted).filter(([, w]) => w.level >= 1).map(([r, w]) => `<div class="row"><span>${L(REGIONS.find((x) => x.id === r)?.name ?? '')}</span><span class="pr">${money(w.bounty)} · ${w.crimes.slice(-3).map((c) => L(c)).join(', ')}</span></div>`).join('');
     this.modal(
       'character',
       `<h2>${esc(p.name)}</h2><div class="sub">${L(g.rep.honorTitle())} · ${tr`${Math.round(g.playtime / 60)} minutes on the frontier`}</div>
@@ -1517,7 +1520,7 @@ export class UI {
     const cb = p.querySelector('#cb') as HTMLElement;
     button(cb, 'Sleep…', 'btn gold').onclick = () => this.openSleep('camp');
     button(cb, 'Cook raw food', 'btn').onclick = () => this.notify(g.camp.cookAll(), 'info');
-    button(cb, 'Drink coffee', 'btn').onclick = () => (g.player.inv.has('coffee') ? (this.useItem('coffee'), undefined) : this.notify('No coffee.', 'info'));
+    button(cb, 'Drink coffee', 'btn').onclick = () => (g.player.inv.has('coffee') ? (this.useItem('coffee'), undefined) : this.notify(L('No coffee.'), 'info'));
     button(cb, 'Save game', 'btn').onclick = () => g.save(g.slot, true);
     button(cb, 'Break camp', 'btn red').onclick = () => { g.camp.break(); this.closeModal(); };
   }
@@ -1525,7 +1528,7 @@ export class UI {
     const g = this.game;
     const p = this.modal('sleep', `<h2>Rest</h2><div class="sub">${L(where === 'bed' ? 'A real bed.' : g.clock.isNight ? 'Under the stars.' : 'A bedroll in the shade.')} ${tr`It's ${g.clock.timeString()}.`}</div><div style="text-align:center" id="sb"></div>`, 480);
     const sb = p.querySelector('#sb') as HTMLElement;
-    for (const h of [2, 4, 8]) button(sb, `${h} hours`, 'btn').onclick = () => { this.closeModal(); g.sleep(h); };
+    for (const h of [2, 4, 8]) button(sb, tr`${h} hours`, 'btn').onclick = () => { this.closeModal(); g.sleep(h); };
     button(sb, 'Until dawn', 'btn gold').onclick = () => {
       this.closeModal();
       const hr = g.clock.hour;
@@ -1571,7 +1574,7 @@ export class UI {
       const bj = p.querySelector('#bj') as HTMLElement;
       if (phase !== 'play') {
         for (const b of [1, 5, 10]) {
-          const btn = button(bj, `Bet ${money(b)}`, bet === b ? 'btn gold' : 'btn');
+          const btn = button(bj, tr`Bet ${money(b)}`, bet === b ? 'btn gold' : 'btn');
           btn.disabled = g.player.money < b;
           btn.onclick = () => {
             bet = b;
@@ -1637,7 +1640,7 @@ function div(parent: HTMLElement, cls: string): HTMLElement {
 function button(parent: HTMLElement, label: string, cls: string): HTMLButtonElement {
   const b = document.createElement('button');
   b.className = cls;
-  b.textContent = label;
+  b.textContent = L(label);
   parent.appendChild(b);
   return b;
 }
@@ -1649,7 +1652,7 @@ function bar(kind: string, frac: number, cap = 1): string {
 }
 function statline(label: string, frac: number, value: string): string {
   const cls = frac > 0.6 ? 'good' : frac < 0.3 ? 'bad' : '';
-  return `<div class="statline"><span>${esc(label)}</span><div class="statbar ${cls}"><i style="width:${Math.max(0, Math.min(1, frac)) * 100}%"></i></div><span class="small-note">${esc(value)}</span></div>`;
+  return `<div class="statline"><span>${esc(L(label))}</span><div class="statbar ${cls}"><i style="width:${Math.max(0, Math.min(1, frac)) * 100}%"></i></div><span class="small-note">${esc(value)}</span></div>`;
 }
 function hex(h: string): [number, number, number] {
   const n = parseInt(h.slice(1), 16);
@@ -1663,13 +1666,13 @@ function dot(c: CanvasRenderingContext2D, x: number, y: number, col: string, r: 
 }
 function gearDesc(g: NonNullable<ReturnType<typeof getItem>['gear']>): string {
   const parts: string[] = [];
-  if (g.staminaDrain && g.staminaDrain !== 1) parts.push(`stamina use ${g.staminaDrain < 1 ? '−' : '+'}${Math.round(Math.abs(1 - g.staminaDrain) * 100)}%`);
-  if (g.staminaRegen && g.staminaRegen !== 1) parts.push(`recovery ${g.staminaRegen > 1 ? '+' : '−'}${Math.round(Math.abs(g.staminaRegen - 1) * 100)}%`);
-  if (g.speed && g.speed !== 1) parts.push(`speed +${Math.round((g.speed - 1) * 100)}%`);
-  if (g.carry) parts.push(`carry ${g.carry > 0 ? '+' : ''}${g.carry} kg`);
-  if (g.handling && g.handling !== 1) parts.push(`handling ${g.handling > 1 ? '+' : '−'}${Math.round(Math.abs(g.handling - 1) * 100)}%`);
-  if (g.terrain) parts.push(`rough ground +${Math.round((g.terrain - 1) * 100)}%`);
-  if (g.warmth) parts.push(`warmth +${g.warmth}`);
+  if (g.staminaDrain && g.staminaDrain !== 1) parts.push(`${L('stamina use')} ${g.staminaDrain < 1 ? '−' : '+'}${Math.round(Math.abs(1 - g.staminaDrain) * 100)}%`);
+  if (g.staminaRegen && g.staminaRegen !== 1) parts.push(`${L('recovery')} ${g.staminaRegen > 1 ? '+' : '−'}${Math.round(Math.abs(g.staminaRegen - 1) * 100)}%`);
+  if (g.speed && g.speed !== 1) parts.push(`${L('speed')} +${Math.round((g.speed - 1) * 100)}%`);
+  if (g.carry) parts.push(`${L('carry')} ${g.carry > 0 ? '+' : ''}${g.carry} kg`);
+  if (g.handling && g.handling !== 1) parts.push(`${L('handling')} ${g.handling > 1 ? '+' : '−'}${Math.round(Math.abs(g.handling - 1) * 100)}%`);
+  if (g.terrain) parts.push(`${L('rough ground')} +${Math.round((g.terrain - 1) * 100)}%`);
+  if (g.warmth) parts.push(`${L('warmth')} +${g.warmth}`);
   return parts.length ? `(${parts.join(', ')})` : '';
 }
 void ITEMS;
