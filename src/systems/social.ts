@@ -13,6 +13,7 @@ import { firstNameOf, isSunday, REACT_LINES, relationBetween, SOCIAL_TUNING as T
 import { SETTLEMENTS } from '../data/world.ts';
 import { Npc } from '../entities/npc.ts';
 import type { Game } from '../game.ts';
+import { L } from '../core/i18n.ts';
 
 interface Line {
   who: Npc;
@@ -176,7 +177,7 @@ export class SocialSystem {
       n.hideFor = T.hideSec[0] + Math.random() * T.hideSec[1];
       n.setState('cower');
       this.stats.hides++;
-      if (Math.random() < 0.4) n.say(pickOf(REACT_LINES.gunfire), 2.2);
+      if (Math.random() < 0.4) n.say(L(pickOf(REACT_LINES.gunfire)), 2.2);
     }
   }
 
@@ -216,7 +217,7 @@ export class SocialSystem {
     const raining = this.game.weather.current.rain >= T.rainShelter;
     if (raining && !this.wasRaining) {
       let k = 0;
-      for (const n of active) if (n.outdoors && !n.chatWith && k++ < 3) n.say(pickOf(REACT_LINES.rain), 2.4);
+      for (const n of active) if (n.outdoors && !n.chatWith && k++ < 3) n.say(L(pickOf(REACT_LINES.rain)), 2.4);
     }
     this.wasRaining = raining;
   }
@@ -224,13 +225,14 @@ export class SocialSystem {
   private fill(s: string, a: Npc | null, b: Npc | null, extra: Record<string, string> = {}): string {
     const g = this.game;
     const town = a ? SETTLEMENTS.find((x) => x.id === a.settlementId)?.name ?? 'town' : 'town';
-    let out = s
-      .replaceAll('{a}', a ? firstNameOf(a.name) : 'friend')
-      .replaceAll('{b}', b ? firstNameOf(b.name) : 'friend')
+    // Translate the line first: the dictionary keys keep their {tokens}, the names go in after.
+    let out = L(s)
+      .replaceAll('{a}', a ? firstNameOf(a.name) : L('friend'))
+      .replaceAll('{b}', b ? firstNameOf(b.name) : L('friend'))
       .replaceAll('{player}', firstNameOf(g.player.name))
-      .replaceAll('{town}', town)
-      .replaceAll('{horse}', g.mainHorse()?.data.name ?? 'horse');
-    for (const [k, v] of Object.entries(extra)) out = out.replaceAll(`{${k}}`, v);
+      .replaceAll('{town}', L(town))
+      .replaceAll('{horse}', g.mainHorse()?.data.name ?? L('horse'));
+    for (const [k, v] of Object.entries(extra)) out = out.replaceAll(`{${k}}`, L(v));
     return out;
   }
 
@@ -252,7 +254,7 @@ export class SocialSystem {
         // Folk jump clear of a horse coming through at speed, and don't thank you for it.
         n.reactCd = 5;
         if (!this.seated(n)) n.dodge(p.x, p.y, 85, 0.6);
-        n.say(pickOf(REACT_LINES.horseNear), 2.2);
+        n.say(L(pickOf(REACT_LINES.horseNear)), 2.2);
         if (d < 18) g.changeOpinion(n.id, -1);
         this.stats.dodges++;
       } else if (!mount && d < T.bumpRadius && speed > 25 && n.reactCd <= 0 && n.act !== 'sleep') {
@@ -262,7 +264,7 @@ export class SocialSystem {
         const rude = n.personality.includes('gruff') || n.personality.includes('proud') || g.npcOpinion(n.id) < -10;
         const pool = n.bumps >= 3 ? REACT_LINES.bumpedAngry : rude ? REACT_LINES.bumpedRude : REACT_LINES.bumped;
         if (n.bumps >= 3) g.changeOpinion(n.id, -2);
-        n.say(pickOf(pool), 2.2);
+        n.say(L(pickOf(pool)), 2.2);
         n.faceTo(p.x, p.y);
         this.stats.bumps++;
       } else if (d < T.greetRadius && n.greetCd <= 0 && !n.bubble && !n.chatWith && n.act !== 'sleep' && n.occupation !== 'outlaw' && (!mount || speed < 40)) {
@@ -342,8 +344,8 @@ export class SocialSystem {
       if (g.time < game.frozenUntil) it.steer = { x: it.x, y: it.y, speed: 0, t: hold };
       else if (pd < 10) {
         // Tagged!
-        it.say('Tag! You\'re it!', 1.8);
-        if (Math.random() < 0.5) prey.say(pickOf(['No fair!', 'Aw, shucks!', 'I wasn\'t ready!']), 1.8);
+        it.say(L('Tag! You\'re it!'), 1.8);
+        if (Math.random() < 0.5) prey.say(L(pickOf(['No fair!', 'Aw, shucks!', 'I wasn\'t ready!'])), 1.8);
         game.it = prey;
         game.frozenUntil = g.time + 1.5;
         prey.steer = { x: prey.x, y: prey.y, speed: 0, t: 1.5 };

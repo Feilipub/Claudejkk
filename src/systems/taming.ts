@@ -10,6 +10,7 @@ import type { HorseEntity } from '../entities/horse.ts';
 import type { Game } from '../game.ts';
 import { addHistory } from '../horse/horse.ts';
 import { rawStat } from '../horse/stats.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export class TamingSystem {
   game: Game;
@@ -24,12 +25,12 @@ export class TamingSystem {
   lassoed(h: HorseEntity): void {
     const g = this.game;
     if (h.data.owner !== 'wild' && h.data.owner !== 'player') {
-      g.notify(`${h.data.name} already belongs to someone.`, 'info');
+      g.notify(tr`${h.data.name} already belongs to someone.`, 'info');
       return;
     }
     if (h.data.tameness >= 100) {
       h.leading = true;
-      g.notify(`You loop the rope over ${h.data.name}. Leading.`, 'horse');
+      g.notify(tr`You loop the rope over ${h.data.name}. Leading.`, 'horse');
       return;
     }
     this.roped = h;
@@ -48,15 +49,15 @@ export class TamingSystem {
     h.data.tameness = clamp(h.data.tameness + gain, 0, 95);
     h.data.stress = clamp(h.data.stress - 12, 0, 100);
     h.data.trust = clamp(h.data.trust + 3, 0, 100);
-    if (h.data.tameness >= 60) return `${h.data.name} stops pulling and lets you touch ${hisHer(h.data)} neck. Try mounting.`;
-    if (h.data.tameness >= 30) return `${h.data.name} snorts, ears flicking toward your voice.`;
-    return `${h.data.name} rolls an eye at you and tosses ${hisHer(h.data)} head.`;
+    if (h.data.tameness >= 60) return tr`${h.data.name} stops pulling and lets you touch ${L(hisHer(h.data))} neck. Try mounting.`;
+    if (h.data.tameness >= 30) return tr`${h.data.name} snorts, ears flicking toward your voice.`;
+    return tr`${h.data.name} rolls an eye at you and tosses ${L(hisHer(h.data))} head.`;
   }
 
   startBreaking(h: HorseEntity): void {
     const g = this.game;
     if (h.data.tameness < 40) {
-      g.notify(`${h.data.name} is too wild to mount. Calm it first.`, 'horse');
+      g.notify(tr`${h.data.name} is too wild to mount. Calm it first.`, 'horse');
       h.rearT = 1;
       return;
     }
@@ -121,7 +122,7 @@ export class TamingSystem {
         g.rep.add('ranchers', 2);
         g.setFlag(`ranchwork_${g.clock.day}`, true);
         g.setFlag('ranchwork_done', ((g.flags.ranchwork_done as number) || 0) + 1);
-        g.notify(`The colt settles under you. Hollis pays you ${pay} dollars.`, 'good');
+        g.notify(tr`The colt settles under you. Hollis pays you ${pay} dollars.`, 'good');
         g.audio.play('coin');
         return;
       }
@@ -134,7 +135,7 @@ export class TamingSystem {
       addHistory(h.data, g.clock.day, 'Broken to saddle by you out on the open range.');
       if (this.roped === h) this.roped = null;
       g.adoptHorse(h);
-      g.notify(`${h.data.name} has accepted you! It's yours now.`, 'good');
+      g.notify(tr`${h.data.name} has accepted you! It's yours now.`, 'good');
       g.audio.play('bond');
       g.setFlag(`tamed_${h.data.breedId}`, true);
       g.setFlag('tamed_any', true);

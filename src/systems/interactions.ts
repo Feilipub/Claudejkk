@@ -157,7 +157,7 @@ export class InteractionSystem {
         x: h.x,
         y: h.y - 40,
         actions: [
-          { label: 'Greet', run: () => { const town = SETTLEMENTS.filter((st) => st.kind === 'town' || st.kind === 'city').sort((a, b) => Math.hypot(a.x * 16 - h.x, a.y * 16 - h.y) - Math.hypot(b.x * 16 - h.x, b.y * 16 - h.y)).find((st) => Math.hypot(st.x * 16 - h.x, st.y * 16 - h.y) > 600); const hr = g.clock.hour; const hello = hr < 12 ? 'Mornin\'.' : hr < 18 ? 'Afternoon.' : 'Evenin\'.'; const lines = [hello, town ? `Road's clear to ${town.name}.` : 'Quiet road today.', 'Watch for rattlers past the wash.', 'Fine animal you\'ve got.', 'Rain coming, I\'d wager.']; g.notify(`“${lines[Math.floor(Math.random() * lines.length)]}”`, 'info'); h.speed = Math.min(h.speed, 20); } },
+          { label: 'Greet', run: () => { const town = SETTLEMENTS.filter((st) => st.kind === 'town' || st.kind === 'city').sort((a, b) => Math.hypot(a.x * 16 - h.x, a.y * 16 - h.y) - Math.hypot(b.x * 16 - h.x, b.y * 16 - h.y)).find((st) => Math.hypot(st.x * 16 - h.x, st.y * 16 - h.y) > 600); const hr = g.clock.hour; const hello = hr < 12 ? 'Mornin\'.' : hr < 18 ? 'Afternoon.' : 'Evenin\'.'; const lines = [hello, town ? `Road's clear to ${town.name}.` : 'Quiet road today.', 'Watch for rattlers past the wash.', 'Fine animal you\'ve got.', 'Rain coming, I\'d wager.']; g.notify(tr`“${lines[Math.floor(Math.random() * lines.length)]}”`, 'info'); h.speed = Math.min(h.speed, 20); } },
           { label: 'Hold up (rob)', run: () => g.ui.choice('Draw on this traveller and rob them? Witnesses will run for the law.', [
             { label: 'Do it', enabled: true, run: () => { const n = g.dismountNpcRider(h); if (n) { n.setState('surrender'); g.law.reportCrime('robbery', n.x, n.y, n.id); g.player.money += 3 + Math.random() * 10; g.notify('You take what they carry.', 'bad'); } } },
             { label: 'Never mind', enabled: true, run: () => undefined },
@@ -217,15 +217,15 @@ export class InteractionSystem {
         },
       });
     }
-    if (d.tiedAt) acts.push({ label: 'Untie', run: () => { d.tiedAt = null; g.notify(`You untie ${d.name}.`, 'horse'); } });
+    if (d.tiedAt) acts.push({ label: 'Untie', run: () => { d.tiedAt = null; g.notify(tr`You untie ${d.name}.`, 'horse'); } });
     else {
       const post = g.world.findNear(Math.floor(h.x / 16), Math.floor(h.y / 16), 2, (x, y) => g.world.objAt(x, y) === O.HitchPost);
-      if (post) acts.push({ label: 'Tie to post', run: () => { d.tiedAt = { x: post.x * 16 + 8, y: post.y * 16 + 16 }; h.leading = false; grantBond(d, 'shelter', day, 0.2); g.notify(`${d.name} is tied to the hitching post.`, 'horse'); } });
+      if (post) acts.push({ label: 'Tie to post', run: () => { d.tiedAt = { x: post.x * 16 + 8, y: post.y * 16 + 16 }; h.leading = false; grantBond(d, 'shelter', day, 0.2); g.notify(tr`${d.name} is tied to the hitching post.`, 'horse'); } });
       acts.push({ label: h.leading ? 'Stop leading' : 'Lead', run: () => this.toggleLead(h) });
     }
     acts.push({ label: 'Saddlebags', run: () => g.ui.openInventory(h) });
     acts.push({ label: 'Inspect & equip', run: () => g.ui.openHorse(h) });
-    if (g.player.mainHorseId !== d.id) acts.push({ label: 'Make main horse', run: () => { g.player.mainHorseId = d.id; g.notify(`${d.name} is now your main horse.`, 'horse'); } });
+    if (g.player.mainHorseId !== d.id) acts.push({ label: 'Make main horse', run: () => { g.player.mainHorseId = d.id; g.notify(tr`${d.name} is now your main horse.`, 'horse'); } });
     return { title: d.name, subtitle: g.horseSummary(h), x: h.x, y: h.y - 30, actions: acts };
   }
 
@@ -249,9 +249,9 @@ export class InteractionSystem {
       return { title: n.name, subtitle: 'Hogtied', x: n.x, y: n.y - 30, actions: acts };
     }
     if (n.state === 'surrender') {
-      acts.push({ label: 'Hogtie', run: () => { n.setState('hogtied'); g.setFlag(`hogtied_${n.id}`, true); g.notify(`You hogtie ${n.name}.`, 'info'); } });
-      acts.push({ label: 'Let them go', run: () => { n.setState('flee'); g.rep.add('honor', 3); g.notify(`${n.name} runs for it.`, 'info'); } });
-      acts.push({ label: 'Rob', run: () => { const m = 2 + n.rng.range(0, 12); g.player.money += m; g.law.reportCrime('robbery', n.x, n.y, n.id); g.notify(`You take ${m.toFixed(2)} dollars.`, 'bad'); n.setState('flee'); } });
+      acts.push({ label: 'Hogtie', run: () => { n.setState('hogtied'); g.setFlag(`hogtied_${n.id}`, true); g.notify(tr`You hogtie ${n.name}.`, 'info'); } });
+      acts.push({ label: 'Let them go', run: () => { n.setState('flee'); g.rep.add('honor', 3); g.notify(tr`${n.name} runs for it.`, 'info'); } });
+      acts.push({ label: 'Rob', run: () => { const m = 2 + n.rng.range(0, 12); g.player.money += m; g.law.reportCrime('robbery', n.x, n.y, n.id); g.notify(tr`You take ${m.toFixed(2)} dollars.`, 'bad'); n.setState('flee'); } });
       if (g.dialogue.treeFor(n)) acts.unshift({ label: 'Talk', run: () => g.dialogue.start(n) });
       return { title: n.name, subtitle: 'Surrendered', x: n.x, y: n.y - 30, actions: acts };
     }
@@ -291,9 +291,9 @@ export class InteractionSystem {
             if (n.weapon && !g.player.weapons.includes(n.weapon)) {
               g.player.weapons.push(n.weapon);
               g.player.clip[n.weapon] = 0;
-              g.notify(`Picked up: ${getItem(n.weapon).name}`, 'good');
+              g.notify(tr`Picked up: ${L(getItem(n.weapon).name)}`, 'good');
             }
-            g.notify(`Found ${m.toFixed(2)} dollars.`, 'good');
+            g.notify(tr`Found ${m.toFixed(2)} dollars.`, 'good');
             if (!n.hostile) g.rep.add('honor', -2);
             g.player.act(1);
           },

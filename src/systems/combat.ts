@@ -13,6 +13,7 @@ import type { Npc } from '../entities/npc.ts';
 import type { Player } from '../entities/player.ts';
 import type { Game } from '../game.ts';
 import { OBJ } from '../world/tiles.ts';
+import { L, tr } from '../core/i18n.ts';
 
 type Hittable = Npc | Animal | HorseEntity | Player;
 
@@ -198,7 +199,7 @@ export class CombatSystem {
       const n = target as Npc;
       n.setState('hogtied');
       n.hostile = false;
-      g.notify(`You hogtie ${n.name}.`, 'info');
+      g.notify(tr`You hogtie ${n.name}.`, 'info');
       g.bus.emit('flag', { key: `hogtied_${n.id}`, value: true });
     }
   }

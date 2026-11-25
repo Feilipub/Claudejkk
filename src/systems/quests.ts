@@ -83,7 +83,7 @@ export class QuestSystem {
     const st = this.states[id];
     if (!st || st.status !== 'active') return;
     st.status = 'failed';
-    this.game.notify(`Quest failed: ${this.defs.get(id)!.title}`, 'bad');
+    this.game.notify(tr`Quest failed: ${this.defs.get(id)!.title}`, 'bad');
     if (this.tracked === id) this.tracked = this.active()[0]?.id ?? null;
   }
 
@@ -94,7 +94,7 @@ export class QuestSystem {
       const obj = this.stageDef(id)?.objectives.find((o) => o.id === objId);
       if (!obj) return;
       st.done.push(objId);
-      if (!obj.hidden) this.game.notify(`✓ ${L(obj.text)}`, 'quest');
+      if (!obj.hidden) this.game.notify(tr`✓ ${L(obj.text)}`, 'quest');
     }
     this.checkStage(id);
   }
@@ -127,7 +127,7 @@ export class QuestSystem {
       const ns = d.stages.find((x) => x.id === next);
       if (ns) {
         this.enterStage(id, ns);
-        this.game.notify(`${L(d.title)}: ${L(ns.objectives[0]?.text ?? 'Updated')}`, 'quest');
+        this.game.notify(tr`${L(d.title)}: ${L(ns.objectives[0]?.text ?? 'Updated')}`, 'quest');
         return;
       }
     }
@@ -191,7 +191,7 @@ export class QuestSystem {
     const st = this.states[q]!;
     st.progress[o.id] = (st.progress[o.id] ?? 0) + 1;
     if (st.progress[o.id]! >= (o.count ?? 1)) this.completeObjective(q, o.id);
-    else this.game.notify(`${o.text} (${st.progress[o.id]}/${o.count})`, 'quest');
+    else this.game.notify(tr`${o.text} (${st.progress[o.id]}/${o.count})`, 'quest');
   }
 
   private forEachObjective(fn: (questId: string, o: Objective) => void): void {

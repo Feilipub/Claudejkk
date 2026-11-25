@@ -10,6 +10,7 @@ import { clamp } from '../core/math.ts';
 import { addHistory, type HorseData, type InjuryKind } from './horse.ts';
 import { grantBond, penalizeBond } from './bonding.ts';
 import { hasTrait, maxHealth, maxStamina, traitAdd, traitMul, rawStat, gearSum } from './stats.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export interface NeedsContext {
   /** Game minutes elapsed. */
@@ -92,7 +93,7 @@ export function dailyCareReview(h: HorseData, day: number): string | null {
   if (neglected) {
     penalizeBond(h, 'neglectDay');
     addHistory(h, day, 'Went hungry, thirsty or untended.');
-    return `${h.name} is suffering from neglect. Your bond weakens.`;
+    return tr`${h.name} is suffering from neglect. Your bond weakens.`;
   }
   if (h.hunger > 55 && h.thirst > 55 && h.cleanliness > 55 && h.hoof > 50) {
     grantBond(h, 'wellCaredDay', day);
@@ -137,53 +138,53 @@ export interface CareResult {
 /** Feed an item from the player's inventory. Caller removes the item on ok. */
 export function feedHorse(h: HorseData, itemId: string, day: number): CareResult {
   const it = getItem(itemId);
-  if (it.category !== 'horseFood') return { ok: false, message: `${h.name} won't eat that.` };
+  if (it.category !== 'horseFood') return { ok: false, message: tr`${h.name} won't eat that.` };
   const e = it.effects ?? {};
-  if (h.hunger > 96 && itemId === 'hay') return { ok: false, message: `${h.name} isn't hungry.` };
+  if (h.hunger > 96 && itemId === 'hay') return { ok: false, message: tr`${h.name} isn't hungry.` };
   h.hunger = Math.min(100, h.hunger + (e.horseHunger ?? 0));
   h.stamina = Math.min(maxStamina(h), h.stamina + (e.horseStamina ?? 0));
   h.stress = clamp(h.stress + (e.horseStress ?? 0), 0, 100);
   const fav = itemId === h.favoriteFood;
   const r = grantBond(h, fav ? 'feedFavorite' : 'feed', day);
-  return { ok: true, message: fav ? `${h.name} loves ${it.name.toLowerCase()} — ears forward, nickering.` : `${h.name} eats the ${it.name.toLowerCase()}.`, bondGained: r.gained, anim: 'eat' };
+  return { ok: true, message: fav ? tr`${h.name} loves ${L(it.name).toLowerCase()} — ears forward, nickering.` : tr`${h.name} eats the ${L(it.name).toLowerCase()}.`, bondGained: r.gained, anim: 'eat' };
 }
 
 export function waterHorse(h: HorseData, day: number): CareResult {
-  if (h.thirst > 95) return { ok: false, message: `${h.name} sniffs the water and turns away.` };
+  if (h.thirst > 95) return { ok: false, message: tr`${h.name} sniffs the water and turns away.` };
   h.thirst = 100;
   const r = grantBond(h, 'water', day);
-  return { ok: true, message: `${h.name} drinks deeply.`, bondGained: r.gained, anim: 'drink' };
+  return { ok: true, message: tr`${h.name} drinks deeply.`, bondGained: r.gained, anim: 'drink' };
 }
 
 export function brushHorse(h: HorseData, day: number): CareResult {
   if (h.cleanliness > 92) {
     const r = grantBond(h, 'pet', day, 0.5);
-    return { ok: true, message: `${h.name} is already clean, but leans into the brush.`, bondGained: r.gained, anim: 'brush' };
+    return { ok: true, message: tr`${h.name} is already clean, but leans into the brush.`, bondGained: r.gained, anim: 'brush' };
   }
   h.cleanliness = 100;
   h.stress = Math.max(0, h.stress - 10 * traitMul(h, 'affection'));
   const r = grantBond(h, 'brush', day);
-  return { ok: true, message: `You brush the dust and sweat out of ${h.name}'s coat.`, bondGained: r.gained, anim: 'brush' };
+  return { ok: true, message: tr`You brush the dust and sweat out of ${h.name}'s coat.`, bondGained: r.gained, anim: 'brush' };
 }
 
 export function cleanHooves(h: HorseData, day: number): CareResult {
   const lameStone = h.injuries.find((i) => i.kind === 'stoneBruise');
-  if (h.hoof > 90 && !lameStone) return { ok: false, message: `${h.name}'s hooves are clean.` };
+  if (h.hoof > 90 && !lameStone) return { ok: false, message: tr`${h.name}'s hooves are clean.` };
   h.hoof = Math.min(100, h.hoof + 45);
   if (lameStone) lameStone.severity = Math.max(0, lameStone.severity - 30);
   const r = grantBond(h, 'cleanHooves', day);
-  return { ok: true, message: lameStone ? `You pry a sharp stone from ${h.name}'s hoof.` : `You pick the packed dirt from ${h.name}'s hooves.`, bondGained: r.gained, anim: 'hoof' };
+  return { ok: true, message: lameStone ? tr`You pry a sharp stone from ${h.name}'s hoof.` : tr`You pick the packed dirt from ${h.name}'s hooves.`, bondGained: r.gained, anim: 'hoof' };
 }
 
 /** Treat injuries with bandage / ointment / liniment. */
 export function treatHorse(h: HorseData, itemId: string, day: number): CareResult {
   const it = getItem(itemId);
   const heal = it.effects?.horseHeal ?? 0;
-  if (heal <= 0 && !it.effects?.horseHealth) return { ok: false, message: `That won't help ${h.name}.` };
+  if (heal <= 0 && !it.effects?.horseHealth) return { ok: false, message: tr`That won't help ${h.name}.` };
   const untreated = h.injuries.filter((i) => !i.treated || i.severity > 0);
   h.health = Math.min(maxHealth(h), h.health + (it.effects?.horseHealth ?? 0));
   h.stamina = Math.min(maxStamina(h), h.stamina + (it.effects?.horseStamina ?? 0));
-  if (untreated.length === 0) return { ok: true, message: `${h.name} perks up.`, anim: 'treat' };
+  if (untreated.length === 0) return { ok: true, message: tr`${h.name} perks up.`, anim: 'treat' };
   // Liniment is best for legs, ointment/bandage for wounds.
   for (const inj of untreated) {
     const legItem = itemId === 'horseLiniment';
@@ -195,33 +196,33 @@ export function treatHorse(h: HorseData, itemId: string, day: number): CareResul
   h.injuries = h.injuries.filter((i) => i.severity > 0);
   const r = grantBond(h, 'treatInjury', day);
   addHistory(h, day, `You treated ${h.name}'s injuries.`);
-  return { ok: true, message: `You dress ${h.name}'s wounds. ${h.sex === 'mare' ? 'She' : 'He'} will still need rest to heal.`, bondGained: r.gained, anim: 'treat' };
+  return { ok: true, message: tr`You dress ${h.name}'s wounds. ${L(h.sex === 'mare' ? 'She' : 'He')} will still need rest to heal.`, bondGained: r.gained, anim: 'treat' };
 }
 
 /** Soothing voice and hands. Works best when the horse is stressed. */
 export function calmHorse(h: HorseData, day: number): CareResult {
   if (h.stress < 15) {
     const r = grantBond(h, 'pet', day, 0.5);
-    return { ok: true, message: `${h.name} is already at ease.`, bondGained: r.gained, anim: 'pet' };
+    return { ok: true, message: tr`${h.name} is already at ease.`, bondGained: r.gained, anim: 'pet' };
   }
   const amount = 25 * traitMul(h, 'calmRate') * traitMul(h, 'affection');
   h.stress = Math.max(0, h.stress - amount);
   const r = grantBond(h, 'calm', day);
-  return { ok: true, message: `You speak low and steady. ${h.name}'s breathing slows.`, bondGained: r.gained, anim: 'pet' };
+  return { ok: true, message: tr`You speak low and steady. ${h.name}'s breathing slows.`, bondGained: r.gained, anim: 'pet' };
 }
 
 export function petHorse(h: HorseData, day: number): CareResult {
   if (traitAdd(h, 'aggression') > 0.3 && h.trust < 30) {
     penalizeBond(h, 'gunfireNearHead', 0.5);
-    return { ok: false, message: `${h.name} pins ${hisHer(h)} ears and swings ${hisHer(h)} head at you.`, anim: 'threat' };
+    return { ok: false, message: tr`${h.name} pins ${L(hisHer(h))} ears and swings ${L(hisHer(h))} head at you.`, anim: 'threat' };
   }
   h.stress = Math.max(0, h.stress - 5 * traitMul(h, 'affection'));
   const r = grantBond(h, 'pet', day, traitMul(h, 'affection'));
   const reactions = hasTrait(h, 'independent')
-    ? `${h.name} tolerates the attention.`
+    ? tr`${h.name} tolerates the attention.`
     : hasTrait(h, 'loyal') || hasTrait(h, 'social')
-      ? `${h.name} nudges your shoulder, asking for more.`
-      : `${h.name} lowers ${hisHer(h)} head into your hand.`;
+      ? tr`${h.name} nudges your shoulder, asking for more.`
+      : tr`${h.name} lowers ${L(hisHer(h))} head into your hand.`;
   return { ok: true, message: reactions, bondGained: r.gained, anim: 'pet' };
 }
 

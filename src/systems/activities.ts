@@ -11,6 +11,7 @@ import { completeLook, type Npc } from '../entities/npc.ts';
 import type { Game } from '../game.ts';
 import { grantBond } from '../horse/bonding.ts';
 import { generateHorse } from '../horse/generator.ts';
+import { L, tr } from '../core/i18n.ts';
 
 interface RaceDef {
   id: string;
@@ -105,7 +106,7 @@ export class Activities {
       return;
     }
     if (p.money < race.entry) {
-      g.notify(`The entry fee is ${race.entry} dollars.`, 'info');
+      g.notify(tr`The entry fee is ${race.entry} dollars.`, 'info');
       return;
     }
     p.money -= race.entry;
@@ -124,7 +125,7 @@ export class Activities {
       return { h: he, cp: 0, skill: rv.skill, done: 0 };
     });
     this.state = { kind: 'race', race, t: 0, countdown: 3.5, playerCp: 0, rivals, finished: [] };
-    g.notify(`${race.name}! Ride through every flag. Purse: ${race.purse} dollars.`, 'quest');
+    g.notify(tr`${L(race.name)}! Ride through every flag. Purse: ${race.purse} dollars.`, 'quest');
   }
 
   startDuel(npcId: string): void {
@@ -179,7 +180,7 @@ export class Activities {
         g.audio.gunshot(p.x, p.y, 'revolver');
         if (onTarget && reaction < s.npcReact + 0.25) {
           s.done = true;
-          g.ui.banner(`You were faster. (${reaction.toFixed(2)}s)`, 3);
+          g.ui.banner(tr`You were faster. (${reaction.toFixed(2)}s)`, 3);
           n.health = 1;
           n.setState('surrender');
           n.say('Ugh… you got me. It\'s done.');
@@ -207,7 +208,7 @@ export class Activities {
     const p = g.player;
     if (s.countdown > 0) {
       s.countdown -= dt;
-      g.ui.banner(s.countdown > 0.5 ? String(Math.ceil(s.countdown - 0.5)) : 'GO!', 0.3);
+      g.ui.banner(s.countdown > 0.5 ? String(Math.ceil(s.countdown - 0.5)) : L('GO!'), 0.3);
       if (p.mount) p.mount.speed = 0;
       return;
     }
@@ -236,13 +237,13 @@ export class Activities {
     const markers = s.playerCp < cps.length ? [cps[s.playerCp]!] : [];
     g.raceMarkers = markers.map(([x, y]) => ({ x: x * 16 + 8, y: y * 16 + 8 }));
     const pos = 1 + s.rivals.filter((r) => r.cp > s.playerCp).length;
-    g.ui.banner(`Flag ${Math.min(s.playerCp + 1, cps.length)}/${cps.length} · Position ${pos} · ${s.t.toFixed(1)}s`, 0.3);
+    g.ui.banner(tr`Flag ${Math.min(s.playerCp + 1, cps.length)}/${cps.length} · Position ${pos} · ${s.t.toFixed(1)}s`, 0.3);
     if (s.finished.includes('you') || s.t > 240) {
       const place = s.finished.indexOf('you') + 1;
       if (place === 1) {
         p.money += s.race.purse;
         g.setFlag(`race_won_${s.race.id}`, true);
-        g.ui.banner(`You won ${s.race.name}! +${s.race.purse} dollars`, 4);
+        g.ui.banner(tr`You won ${L(s.race.name)}! +${s.race.purse} dollars`, 4);
         if (p.mount) grantBond(p.mount.data, 'stressSurvived', g.clock.day);
         g.rep.add('townsfolk', 4);
         g.audio.play('quest');

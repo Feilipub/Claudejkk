@@ -15,6 +15,8 @@ import { PEOPLE } from './pt-BR/people.ts';
 import { ITEMS } from './pt-BR/items.ts';
 import { MISC } from './pt-BR/misc.ts';
 import { UI_PT } from './pt-BR/ui.ts';
+import { SYSTEMS } from './pt-BR/systems.ts';
+import { SOCIAL } from './pt-BR/social.ts';
 
 export const PT_BR: Record<string, string> = {
   ...DIALOGUE1,
@@ -28,5 +30,7 @@ export const PT_BR: Record<string, string> = {
   ...PEOPLE,
   ...ITEMS,
   ...MISC,
+  ...SYSTEMS,
+  ...SOCIAL,
   ...UI_PT,
 };

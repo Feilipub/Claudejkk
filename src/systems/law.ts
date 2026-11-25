@@ -9,6 +9,7 @@ import { REGIONS, SETTLEMENTS } from '../data/world.ts';
 import type { CrimeKind } from '../core/events.ts';
 import type { Npc } from '../entities/npc.ts';
 import type { Game } from '../game.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export interface WantedState {
   bounty: number;
@@ -108,7 +109,7 @@ export class LawSystem {
         n.witnessT = BALANCE.law.reportTimeSec * (1.6 - law);
       }
     }
-    if (witnessed && kind !== 'discharge') g.notify(`Witnessed: ${CRIME_NAMES[kind]}. The witness will run for the law — ride off, or stay and face it.`, 'law');
+    if (witnessed && kind !== 'discharge') g.notify(tr`Witnessed: ${L(CRIME_NAMES[kind])}. The witness will run for the law — ride off, or stay and face it.`, 'law');
   }
 
   /** A civilian witness made it to the law. */
@@ -132,8 +133,8 @@ export class LawSystem {
     // Lethal force is for killers and the truly notorious; everyone else gets the chance to come quietly.
     const killer = w.crimes.includes(CRIME_NAMES.murder);
     w.level = killer || w.bounty >= 150 ? 3 : w.bounty >= 3 ? 2 : 1;
-    if (w.level >= 2 && was < 2) g.notify(`You are WANTED in ${REGIONS.find((r) => r.id === region)?.name}. Bounty: ${w.bounty.toFixed(0)} dollars.`, 'law');
-    else if (w.level >= 2) g.notify(`Bounty raised to ${w.bounty.toFixed(0)} dollars.`, 'law');
+    if (w.level >= 2 && was < 2) g.notify(tr`You are WANTED in ${L(REGIONS.find((r) => r.id === region)?.name ?? '')}. Bounty: ${w.bounty.toFixed(0)} dollars.`, 'law');
+    else if (w.level >= 2) g.notify(tr`Bounty raised to ${w.bounty.toFixed(0)} dollars.`, 'law');
     // Lawmen in the area are alerted.
     for (const e of g.spatial.query(g.player.x, g.player.y, 500, 'npc')) {
       const l = e as Npc;
@@ -205,9 +206,9 @@ export class LawSystem {
               g.player.money -= w.bounty * 0.6 + 5;
               this.clear(region);
               g.rep.add('honor', -4);
-              g.notify(`${lawman.name} pockets the money and looks the other way.`, 'law');
+              g.notify(tr`${lawman.name} pockets the money and looks the other way.`, 'law');
             } else {
-              g.notify(`${lawman.name}: "Bribing an officer? That's another charge."`, 'law');
+              g.notify(tr`${lawman.name}: "Bribing an officer? That's another charge."`, 'law');
               w.bounty += 10;
               this.jail(region);
             }
@@ -227,7 +228,7 @@ export class LawSystem {
     w.bounty += 25;
     w.crimes.push('Resisting arrest');
     w.level = 3;
-    g.notify(`${lawman.name}: "So that's how it is." Resisting arrest. Bounty ${w.bounty.toFixed(0)} dollars.`, 'law');
+    g.notify(tr`${lawman.name}: "So that's how it is." Resisting arrest. Bounty ${w.bounty.toFixed(0)} dollars.`, 'law');
     for (const e of g.spatial.query(g.player.x, g.player.y, 600, 'npc')) {
       const l = e as Npc;
       if ((l.occupation === 'sheriff' || l.occupation === 'deputy') && l.alive) {
@@ -241,7 +242,7 @@ export class LawSystem {
     const g = this.game;
     const w = this.get(region);
     g.player.money = Math.max(0, g.player.money - w.bounty);
-    g.notify(`Bounty of ${w.bounty.toFixed(0)} dollars paid. You're a free citizen in ${REGIONS.find((r) => r.id === region)?.name}.`, 'law');
+    g.notify(tr`Bounty of ${w.bounty.toFixed(0)} dollars paid. You're a free citizen in ${L(REGIONS.find((r) => r.id === region)?.name ?? '')}.`, 'law');
     this.clear(region);
   }
 
@@ -255,7 +256,7 @@ export class LawSystem {
     this.clear(region);
     const sheriff = g.world.buildings.find((b) => b.type === 'sheriff' && SETTLEMENTS.find((s) => s.id === b.settlementId)?.regionId === region) ?? g.world.buildings.find((b) => b.type === 'sheriff')!;
     g.teleportPlayer(sheriff.doorX * 16 + 8, (sheriff.doorY + 2) * 16);
-    g.notify(`You served ${days} day${days > 1 ? 's' : ''} in a cell. Your horse was kept at the livery.`, 'law');
+    g.notify(days > 1 ? tr`You served ${days} days in a cell. Your horse was kept at the livery.` : L('You served a day in a cell. Your horse was kept at the livery.'), 'law');
   }
 
   clear(region: string): void {

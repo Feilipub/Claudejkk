@@ -14,6 +14,7 @@ import type { Game } from '../game.ts';
 import { grantBond } from '../horse/bonding.ts';
 import { addHistory } from '../horse/horse.ts';
 import { bondLevel } from '../horse/stats.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export class HorseThiefSystem {
   game: Game;
@@ -52,7 +53,7 @@ export class HorseThiefSystem {
         h.data.tiedAt = null;
         g.waypoint = null;
         grantBond(h.data, 'stressSurvived', g.clock.day);
-        g.notify(`${h.data.name} nickers when it sees you. The liveryman doesn't argue with your bill of sale.`, 'good');
+        g.notify(tr`${h.data.name} nickers when it sees you. The liveryman doesn't argue with your bill of sale.`, 'good');
         addHistory(h.data, g.clock.day, 'Reclaimed by you after being stolen.');
       }
     }
@@ -80,7 +81,7 @@ export class HorseThiefSystem {
     h.npcRiderLook = completeLook({ bandana: '#2a2a2a', coat: '#2a2520' }, new Rng(this.rng.int(1, 1e9)), 'outlaw');
     this.theft = { horse: h, heading: Math.atan2(h.y - g.player.y, h.x - g.player.x), t: 0 };
     const seen = Math.hypot(h.x - g.player.x, h.y - g.player.y) < 900;
-    g.notify(seen ? `A thief is riding off on ${h.data.name}! Chase them or whistle [H].` : `You hear a distant whinny. Something's wrong with ${h.data.name}.`, 'bad');
+    g.notify(seen ? tr`A thief is riding off on ${h.data.name}! Chase them or whistle [H].` : tr`You hear a distant whinny. Something's wrong with ${h.data.name}.`, 'bad');
     g.audio.neigh(h.x, h.y, true);
     addHistory(h.data, g.clock.day, 'Stolen by a horse thief.');
   }
@@ -95,11 +96,11 @@ export class HorseThiefSystem {
     const d = Math.hypot(h.x - g.player.x, h.y - g.player.y);
     const range = [180, 320, 520, 820, 1400][bond - 1]!;
     if (d > range * 1.4) {
-      g.notify(`${h.data.name} is too far away to hear you.`, 'bad');
+      g.notify(tr`${h.data.name} is too far away to hear you.`, 'bad');
       return true;
     }
     if (bond >= 3 && this.rng.chance(0.3 + bond * 0.12)) {
-      this.bail(`${h.data.name} hears you, plants its feet and bucks the thief into the dirt!`);
+      this.bail(tr`${h.data.name} hears you, plants its feet and bucks the thief into the dirt!`);
       h.brain = { state: 'come', target: { x: g.player.x, y: g.player.y }, gait: 'canter', duration: 12, label: 'Coming back to you' };
       h.brainTimer = 12;
       grantBond(h.data, 'stressSurvived', g.clock.day);
@@ -147,8 +148,8 @@ export class HorseThiefSystem {
     h.data.tiedAt = { x: h.x, y: h.y };
     h.speed = 0;
     this.impounded = { horseId: h.id, settlementId: far.id, day: g.clock.day };
-    g.notify(`${h.data.name} is gone. Word may travel — keep your ears open.`, 'bad');
-    setTimeout(() => g.notify(`A telegram: a ${getBreed(h.data.breedId).name.toLowerCase()} matching ${h.data.name} was sold at ${far.name}. It's tied at the livery there.`, 'horse'), 20000);
+    g.notify(tr`${h.data.name} is gone. Word may travel — keep your ears open.`, 'bad');
+    setTimeout(() => g.notify(tr`A telegram: a ${L(getBreed(h.data.breedId).name).toLowerCase()} matching ${h.data.name} was sold at ${L(far.name)}. It's tied at the livery there.`, 'horse'), 20000);
     g.waypoint = { x: h.x, y: h.y };
   }
 }

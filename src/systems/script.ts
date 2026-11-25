@@ -5,6 +5,7 @@
 import type { Cond, Effect, RepKey } from '../data/schema.ts';
 import type { Game } from '../game.ts';
 import { bondLevel } from '../horse/stats.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export interface ScriptCtx {
   npcId?: string;
@@ -83,7 +84,7 @@ function applyEffect(g: Game, e: Effect, ctx: ScriptCtx): void {
   else if ('take' in e) g.player.inv.remove(e.take, Math.min(e.qty ?? 1, g.player.inv.count(e.take)));
   else if ('money' in e) {
     g.player.money = Math.max(0, g.player.money + e.money);
-    if (e.money > 0) g.notify(`+ ${e.money.toFixed(2)} dollars`, 'good');
+    if (e.money > 0) g.notify(tr`+ ${e.money.toFixed(2)} dollars`, 'good');
     g.audio.play('coin');
   } else if ('pay' in e) {
     g.player.money = Math.max(0, g.player.money - e.pay);

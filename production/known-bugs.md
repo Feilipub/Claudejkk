@@ -45,7 +45,7 @@ Last updated: 2026-11-23. Severity: S1 blocker · S2 major · S3 minor · S4 cos
 | ~~WF-B23~~ | Low | **Fixed 2026-11-24.** The "Pale Mare" first objective completed on arriving at Mustang Flats even if the herd was out of sight. New `spot` objective type: it completes only when a horse tagged `pale_mare` is within 8 tiles, and the tracker follows the live mare. Guard: `npm run test:side` ("spot: spotted at 40px"). | Lucas |
 | WF-B24 | Low | Roofs of deep buildings (Port Ashby) still dominate the screen; building depth comes from the settlement layout. | buildings specialist |
 | WF-B25 | Low | Foals reuse the adult horse drawing scaled down. | horses specialist |
-| ~~WF-B26~~ | Low | **Mostly fixed 2026-11-25.** UI, HUD, panels and quest notifications build tr`` keys now. Still English until the systems refactor lands: notifications composed inside `horse/care.ts`, `entities/horse.ts`, `systems/law.ts`, `systems/jobs.ts`, `systems/social.ts` (e.g. `{0} lowers {1} head.`), and `hisHer()` pronouns. | lead |
+| ~~WF-B26~~ | Low | **Fixed 2026-11-25.** Every runtime sentence builds a tr`` key (105 templates across horse care, riding, law, jobs, taming, activities, economy refusals, thief events) with English-bearing values (items, breeds, places, crimes, pronouns) looked up before interpolation; townsfolk talk is translated before its {tokens} are filled. Guard: `WF_LOCALE=pt-BR node tools/smoke.mjs <dir>` dumps every string that fell back to English — what remains are proper names and already-translated composites. | lead |
 
 ## Mobile controls hotfix (2026-11-24, after the owner reported "joystick e movimentação muito bugados")
 | Id | Severity | Issue | Fix | Guard |

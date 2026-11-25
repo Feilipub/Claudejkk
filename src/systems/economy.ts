@@ -19,6 +19,7 @@ import type { Game } from '../game.ts';
 import { askingPrice, offerPrice, type PriceContext } from '../horse/economy.ts';
 import { generateHorse, pickBreed } from '../horse/generator.ts';
 import { addHistory, type HorseData } from '../horse/horse.ts';
+import { L, tr } from '../core/i18n.ts';
 
 /** A homestead the player owns. */
 export interface OwnedPlot {
@@ -294,7 +295,7 @@ export class Economy {
       if (!def) continue;
       const r = dailyPlotTick(own, def, g.player.money);
       g.player.money = round(g.player.money - r.taxPaid);
-      if (r.newArrears > 0 && own.arrears === r.newArrears) g.notify(`Tax on ${def.name} is unpaid. Settle it at a land office.`, 'bad');
+      if (r.newArrears > 0 && own.arrears === r.newArrears) g.notify(tr`Tax on ${L(def.name)} is unpaid. Settle it at a land office.`, 'bad');
     }
   }
 

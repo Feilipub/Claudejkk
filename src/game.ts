@@ -37,7 +37,7 @@ import { JobSystem } from './systems/jobs.ts';
 import { InteractionSystem } from './systems/interactions.ts';
 import { LawSystem } from './systems/law.ts';
 import { QuestSystem } from './systems/quests.ts';
-import { Reputation } from './systems/reputation.ts';
+import { Reputation, REP_LABELS } from './systems/reputation.ts';
 import { readSave, writeSave } from './systems/save.ts';
 import { Spawner } from './systems/spawner.ts';
 import { TamingSystem } from './systems/taming.ts';
@@ -49,6 +49,7 @@ import type { UI } from './ui/ui.ts';
 import type { Spot, Corral } from './world/settlements.ts';
 import type { Building, World } from './world/world.ts';
 import { L, tr } from './core/i18n.ts';
+import { SKILL_INFO } from './systems/skills.ts';
 
 export interface NpcMemory {
   opinion: number;
@@ -162,9 +163,9 @@ export class Game {
       },
       spawnBountyHunters: (n) => this.spawnBountyHunters(n),
     };
-    this.player.skills.onLevel = (s, l) => this.notify(`Skill improved: ${s} ${l}`, 'good');
+    this.player.skills.onLevel = (s, l) => this.notify(tr`Skill improved: ${L(SKILL_INFO[s].name)} ${l}`, 'good');
     this.rep.onChange = (k, d) => {
-      if (Math.abs(d) >= 3 && k !== 'notoriety') this.notify(`${k === 'honor' ? 'Honor' : k} ${d > 0 ? '▲' : '▼'}`, d > 0 ? 'good' : 'bad');
+      if (Math.abs(d) >= 3 && k !== 'notoriety') this.notify(`${L(REP_LABELS[k as keyof typeof REP_LABELS] ?? k)} ${d > 0 ? '▲' : '▼'}`, d > 0 ? 'good' : 'bad');
     };
     this.addEntity(this.player);
   }
@@ -332,7 +333,7 @@ export class Game {
     if (this.pregnancies.some((p) => p.damId === damId)) return `${dam.data.name} is already in foal.`;
     this.pregnancies.push({ damId, sireId, dueDay: this.clock.day + GESTATION_DAYS, seed: this.rng.int(1, 1e9) });
     addHistory(dam.data, this.clock.day, `Covered by ${sire.data.name}.`);
-    this.notify(`${dam.data.name} is in foal. Expect the foal in ${GESTATION_DAYS} days at the ranch.`, 'horse');
+    this.notify(tr`${dam.data.name} is in foal. Expect the foal in ${GESTATION_DAYS} days at the ranch.`, 'horse');
     return null;
   }
 
@@ -351,7 +352,7 @@ export class Game {
         if (corral) fe.pen = { x: corral.x * 16 + 16, y: corral.y * 16 + 16, w: (corral.w - 2) * 16, h: (corral.h - 2) * 16 };
         this.adoptHorse(fe);
         addHistory(dam.data, this.clock.day, 'Gave birth to a healthy foal.');
-        this.notify(`A foal was born at the Brannigan ranch, out of ${dam.data.name}! Name it from the horse screen.`, 'good');
+        this.notify(tr`A foal was born at the Brannigan ranch, out of ${dam.data.name}! Name it from the horse screen.`, 'good');
       }
     }
     this.pregnancies = this.pregnancies.filter((x) => x.dueDay > this.clock.day);
@@ -421,7 +422,7 @@ export class Game {
       return;
     }
     if (this.thieves.impounded?.horseId === h.id) {
-      this.notify(`${h.data.name} is tied at a livery far away. Go and get it.`, 'horse');
+      this.notify(tr`${h.data.name} is tied at a livery far away. Go and get it.`, 'horse');
       return;
     }
     if (h.rider) return;
@@ -440,15 +441,15 @@ export class Game {
           h.calledAt = this.time;
           h.brainTimer = 0;
           h.data.tiedAt = null;
-          this.notify(`${h.data.name} heard you from afar and is on the way.`, 'horse');
+          this.notify(tr`${h.data.name} heard you from afar and is on the way.`, 'horse');
         }
         return;
       }
-      this.notify(`${h.data.name} is too far away to hear you (bond ${bondLevel(h.data)} range).`, 'horse');
+      this.notify(tr`${h.data.name} is too far away to hear you (bond ${bondLevel(h.data)} range).`, 'horse');
       return;
     }
     if (h.data.tiedAt) {
-      this.notify(`${h.data.name} whinnies but is tied up.`, 'horse');
+      this.notify(tr`${h.data.name} whinnies but is tied up.`, 'horse');
       this.audio.neigh(h.x, h.y, false);
       return;
     }
@@ -511,7 +512,7 @@ export class Game {
     }
     this.adoptHorse(ent);
     if (!this.mainHorse() || this.mainHorse()!.data.tag === 'rental') this.player.mainHorseId = h.id;
-    this.notify(`${h.name} is yours. Lead it out of the corral.`, 'good');
+    this.notify(tr`${h.name} is yours. Lead it out of the corral.`, 'good');
   }
   releaseHorseToTrader(he: HorseEntity, shopId: string): void {
     he.dead = true;
@@ -547,7 +548,7 @@ export class Game {
     this.adoptHorse(he);
     this.player.mainHorseId = h.id;
     this.setFlag('main_horse_chosen', true);
-    this.notify(`${h.name} is now your horse.`, 'good');
+    this.notify(tr`${h.name} is now your horse.`, 'good');
     this.audio.play('bond');
   }
   injureHorse(h: HorseEntity, kind: InjuryKind, severity: number, cause: string): void {
@@ -559,7 +560,7 @@ export class Game {
     if (h.rider) h.rider.dismount(this, true);
     addHistory(h.data, this.clock.day, `Died: ${cause}.`);
     if (h.data.owner === 'player') {
-      this.notify(`${h.data.name} is dead.`, 'bad');
+      this.notify(tr`${h.data.name} is dead.`, 'bad');
       this.setFlag(`horse_died_${h.id}`, true);
     }
     h.dead = true;
@@ -576,7 +577,7 @@ export class Game {
     if (lvl > prev) {
       this.flags[key] = lvl;
       const names = ['', 'Wary', 'Familiar', 'Trusting', 'Devoted', 'Kindred'];
-      this.ui.banner(`Bond with ${h.data.name}: ${names[lvl]}`, 3);
+      this.ui.banner(tr`Bond with ${h.data.name}: ${L(names[lvl]!)}`, 3);
       this.audio.play('bond');
       addHistory(h.data, this.clock.day, `Your bond deepened: ${names[lvl]}.`);
       this.bus.emit('horseBond', { horseId: h.id, level: lvl });
@@ -633,7 +634,7 @@ export class Game {
       const enc = this.content.ENCOUNTERS.find((e) => e.enemies.some((x) => x.tag === n.tag) && Math.hypot(e.x * 16 - n.x, e.y * 16 - n.y) < 600);
       if (!left.length && enc) {
         this.setFlag(`enc_cleared_${enc.id}`, true);
-        this.notify(`${enc.name}: cleared.`, 'quest');
+        this.notify(tr`${L(enc.name)}: cleared.`, 'quest');
       }
     }
   }
@@ -659,7 +660,7 @@ export class Game {
     const reward = 15;
     this.player.money += reward;
     this.rep.add('honor', 3);
-    this.notify(`The law takes ${n.name} into custody. +${reward} dollars`, 'good');
+    this.notify(tr`The law takes ${n.name} into custody. +${reward} dollars`, 'good');
   }
   private spawnBountyHunters(n: number): void {
     const pos = this.spawner.findSpawnPoint(350, 500);
@@ -698,16 +699,16 @@ export class Game {
         h.data.gearCondition[slot] = 100;
         h.refreshStats();
         if (qty > 1) this.ownedGear[id] = (this.ownedGear[id] ?? 0) + qty - 1;
-        this.notify(`${it.name} fitted on ${h.data.name}.`, 'good');
+        this.notify(tr`${L(it.name)} fitted on ${h.data.name}.`, 'good');
         return;
       }
       this.ownedGear[id] = (this.ownedGear[id] ?? 0) + qty;
-      this.notify(`Received: ${it.name} (stored with your tack — fit it from the horse screen [B])`, 'good');
+      this.notify(tr`Received: ${L(it.name)} (stored with your tack — fit it from the horse screen [B])`, 'good');
       return;
     }
     if (it.category === 'weapon') {
       if (!this.player.weapons.includes(id)) this.player.weapons.push(id);
-      this.notify(`Received: ${it.name}`, 'good');
+      this.notify(tr`Received: ${L(it.name)}`, 'good');
       return;
     }
     const n = this.player.inv.add(id, qty);
@@ -720,8 +721,8 @@ export class Game {
         stored = overflow;
       }
     }
-    if (n + stored > 0) this.notify(`+${n + stored} ${it.name}${stored ? ' (to saddlebags)' : ''}`, 'good');
-    else this.notify(`No room for ${it.name}.`, 'bad');
+    if (n + stored > 0) this.notify(tr`+${n + stored} ${L(it.name)}` + (stored ? ' ' + L('(to saddlebags)') : ''), 'good');
+    else this.notify(tr`No room for ${L(it.name)}.`, 'bad');
     this.bus.emit('itemGained', { itemId: id, qty });
   }
   unlockLore(id: string): void {
@@ -738,7 +739,7 @@ export class Game {
     if (!poi) return;
     this.bus.emit('locationDiscovered', { poiId: id });
     if (!silent) {
-      this.ui.banner(`Discovered: ${poi.name}`, 3);
+      this.ui.banner(tr`Discovered: ${L(poi.name)}`, 3);
       this.rep.add('honor', 0);
       this.player.skills.gain('survival', 5);
     }
@@ -823,7 +824,7 @@ export class Game {
         if (this.camp.near()) grantBond(h.data, 'timeTogetherHour', this.clock.day, hours * 0.5);
       }
     }
-    this.notify(`You sleep ${hours} hours. It's ${this.clock.timeString()}.`, 'info');
+    this.notify(tr`You sleep ${hours} hours. It's ${this.clock.timeString()}.`, 'info');
     this.save('autosave', false);
   }
 
@@ -921,7 +922,7 @@ export class Game {
       h.y = p.y + 10;
       h.data.tiedAt = null;
     }
-    this.notify(`You wake at the doctor's. The bill: ${lost.toFixed(2)} dollars.`, 'bad');
+    this.notify(tr`You wake at the doctor's. The bill: ${lost.toFixed(2)} dollars.`, 'bad');
   }
 
   private markerCache = { t: -1, give: new Set<string>(), talk: new Set<string>() };

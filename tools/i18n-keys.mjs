@@ -26,6 +26,8 @@ const coats = await import('../src/data/coats.ts');
 const traits = await import('../src/data/personalities.ts');
 const wildlife = await import('../src/data/wildlife.ts');
 const shops = await import('../src/data/shops.ts');
+const social = await import('../src/data/social.ts');
+const tiles = await import('../src/world/tiles.ts');
 
 for (const t of DIALOGUE)
   for (const n of t.nodes) {
@@ -99,6 +101,11 @@ for (const t of traits.TRAITS ?? []) {
 }
 for (const sp of wildlife.SPECIES ?? []) add('wildlife', sp.name);
 for (const sh of shops.SHOPS ?? []) add('shops', sh.name);
+for (const ex of Object.values(social.TOPICS ?? {})) for (const e of ex) for (const l of e) add('social', l);
+for (const ex of Object.values(social.WORK_TALK ?? {})) for (const e of ex) for (const l of e) add('social', l);
+for (const arr of Object.values(social.REACT_LINES ?? {})) for (const l of arr) add('social', l);
+for (const o of Object.values(tiles.OBJ ?? {})) add('objects', o.name);
+for (const s of world.SETTLEMENTS ?? []) { add('world', s.name); add('world', s.description); }
 
 // Code keys: L('…') and tr`…`
 const walk = (dir) => {
@@ -110,8 +117,23 @@ const walk = (dir) => {
       for (const m of src.matchAll(/\bL\(\s*(['"])((?:\\.|(?!\1).)*)\1/g)) add('code', m[2].replace(/\\'/g, "'"));
       for (const m of src.matchAll(/\btr`((?:\\.|[^`])*)`/g)) {
         let i = 0;
-        add('code', m[1].replace(/\$\{[^}]*\}/g, () => `{${i++}}`));
+        // Placeholders may nest braces (L(getItem(x).name)); balance them.
+        let out = '';
+        let depth = 0;
+        const t = m[1];
+        for (let k = 0; k < t.length; k++) {
+          if (depth === 0 && t[k] === '$' && t[k + 1] === '{') { depth = 1; k++; out += `{${i++}}`; continue; }
+          if (depth > 0) { if (t[k] === '{') depth++; else if (t[k] === '}') depth--; continue; }
+          out += t[k];
+        }
+        add('code', out);
       }
+      // Plain string literals that reach the player through notify()/banner(), job failures,
+      // horse falls, care results and economy/job refusals (all shown through L() at display).
+      for (const m of src.matchAll(/\b(?:notify|banner|fail|say)\(\s*'((?:\\.|[^'])*)'/g)) add('code_plain', m[1].replace(/\\'/g, "'"));
+      for (const m of src.matchAll(/\b(?:throwRider|fall)\(game,\s*'((?:\\.|[^'])*)'/g)) add('code_plain', m[1].replace(/\\'/g, "'"));
+      for (const m of src.matchAll(/\bmessage:\s*'((?:\\.|[^'])*)'/g)) add('code_plain', m[1].replace(/\\'/g, "'"));
+      if (/systems\/(economy|jobs|taming)\.ts$|game\.ts$|horse\/care\.ts$/.test(p)) for (const m of src.matchAll(/\breturn '((?:\\.|[^'])*)';/g)) add('code_plain', m[1].replace(/\\'/g, "'"));
     }
   }
 };

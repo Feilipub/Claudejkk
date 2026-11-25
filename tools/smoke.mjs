@@ -5,7 +5,7 @@
 // Usage: node tools/smoke.mjs [outDir]
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { extname, join } from 'node:path';
 const { chromium } = createRequire(import.meta.url)('playwright');
 
@@ -62,6 +62,8 @@ await step('character creator', async () => {
   await shot('02-creator');
   await page.click('#go');
   await page.waitForFunction(() => window.wf.started, null, { timeout: 10000 });
+  // WF_LOCALE=pt-BR runs the whole smoke in that language and dumps every string that fell back to English.
+  if (process.env.WF_LOCALE) await page.evaluate((loc) => { window.game.ui.settings.locale = loc; window.game.ui.applySettings(); }, process.env.WF_LOCALE);
   await page.waitForTimeout(1500);
   await shot('03-start-larkspur');
 });
@@ -113,7 +115,7 @@ await step('horse care interactions', async () => {
     g.interactions.current.actions.find((a) => a.label.startsWith('Brush')).run();
   });
   const msg = await page.evaluate(() => document.querySelector('.notes')?.textContent ?? '');
-  if (!/brush|clean/i.test(msg)) throw new Error('no brushing feedback: ' + msg);
+  if (!/brush|clean|escov|limp/i.test(msg)) throw new Error('no brushing feedback: ' + msg);
 });
 await step('horse screen', async () => {
   await page.keyboard.press('KeyB');
@@ -317,6 +319,11 @@ await step('frame time budget', async () => {
 });
 const wfErrors = await page.evaluate(() => window.wf.errors);
 errors.push(...wfErrors);
+if (process.env.WF_LOCALE) {
+  const missing = await page.evaluate(() => [...(window.wfI18nMissing ?? [])]);
+  writeFileSync(`${out}/i18n-missing.json`, JSON.stringify(missing, null, 1));
+  console.log(`i18n: ${missing.length} strings fell back to English (see ${out}/i18n-missing.json)`);
+}
 for (const [s, n] of results) console.log(`${s}  ${n}`);
 if (errors.length) console.log('ERRORS:\n' + [...new Set(errors)].slice(0, 20).join('\n'));
 await browser.close();

@@ -14,6 +14,7 @@ import type { Npc } from '../entities/npc.ts';
 import type { Game } from '../game.ts';
 import { bondLevel } from '../horse/stats.ts';
 import { applyEffects, evalCond } from './script.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export interface OpenDialogue {
   npc: Npc;
@@ -196,7 +197,7 @@ export class DialogueSystem {
         const work = seek.workAt ? ` Try the ${seek.workAt === 'stable' ? 'livery' : seek.workAt}.` : '';
         text = yds < 25 ? `${seek.name}? Right over there, a stone's throw ${dir}.` : `${seek.name}? Last I saw, ${yds > 400 ? 'a good ride' : 'about ' + yds + ' yards'} ${dir} of here.${work}`;
         g.waypoint = loc;
-        g.notify(`${seek.name}'s whereabouts marked on your compass.`, 'info');
+        g.notify(tr`${seek.name}'s whereabouts marked on your compass.`, 'info');
       } else text = 'Can\'t say I\'ve seen them today.';
       opts.push({ text: 'Thanks.', next: 'end' });
     } else if (topic === 'horses') {

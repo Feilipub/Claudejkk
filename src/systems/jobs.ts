@@ -36,6 +36,7 @@ import {
   type JobOffer, type PayContext,
 } from './economy.ts';
 import { O } from '../world/tiles.ts';
+import { L, tr } from '../core/i18n.ts';
 
 /** The job in progress (saved). */
 export interface ActiveJob {
@@ -110,7 +111,7 @@ export class JobSystem {
       if (this.active?.outlawId === e.npcId) {
         this.active.outlawDead = true;
         const b = JOB_BOARDS.find((x) => x.settlementId === this.active!.offer.boardId);
-        game.notify(`The outlaw is dead. Claim the reduced bounty at the ${b?.name ?? 'board'}.`, 'quest');
+        game.notify(tr`The outlaw is dead. Claim the reduced bounty at the ${L(b?.name ?? 'board')}.`, 'quest');
         this.setWaypoint(this.boardPx(this.active.offer.boardId));
       }
     });
@@ -320,19 +321,19 @@ export class JobSystem {
         a.deadline = now + deliveryDeadline(o.tiles, d.pace);
         if (d.ambushChance && this.rng.chance(d.ambushChance)) a.ambushAt = this.rng.range(BALANCE.jobs.ambushWindow[0], BALANCE.jobs.ambushWindow[1]);
         this.setWaypoint(this.boardPx(o.destId!));
-        g.notify(`${d.qty} × ${getItem(d.cargo).name} to ${SETTLEMENTS.find((s) => s.id === o.destId)?.name}. Deliver within ${Math.round(a.deadline - now)} minutes.`, 'quest');
+        g.notify(tr`${d.qty} × ${L(getItem(d.cargo).name)} to ${L(SETTLEMENTS.find((s) => s.id === o.destId)?.name ?? '')}. Deliver within ${Math.round(a.deadline - now)} minutes.`, 'quest');
         break;
       }
       case 'gather':
         a.deadline = now + t.gather!.deadlineDays * 24 * 60;
-        g.notify(`Bring ${o.units} × ${getItem(o.item!).name} to the ${board.name} within ${t.gather!.deadlineDays} day${t.gather!.deadlineDays > 1 ? 's' : ''}.`, 'quest');
+        g.notify(t.gather!.deadlineDays > 1 ? tr`Bring ${o.units} × ${L(getItem(o.item!).name)} to the ${L(board.name)} within ${t.gather!.deadlineDays} days.` : tr`Bring ${o.units} × ${L(getItem(o.item!).name)} to the ${L(board.name)} by tomorrow.`, 'quest');
         break;
       case 'cattle':
         a.deadline = now + t.cattle!.limitMinutes;
         a.penned = 0;
         a.lost = 0;
         this.spawnCattle(a, o.units);
-        g.notify(`${o.units} steers are loose. Ride round behind them and push them through the corral gate.`, 'quest');
+        g.notify(tr`${o.units} steers are loose. Ride round behind them and push them through the corral gate.`, 'quest');
         break;
       case 'chores': {
         const c = t.chores!;
@@ -343,7 +344,7 @@ export class JobSystem {
         a.misses = 0;
         o.units = a.tasks.length;
         if (c.consumes) g.player.inv.add(c.consumes, a.tasks.length);
-        g.notify(`Flags mark the work: ${a.tasks.length} × ${c.label.toLowerCase()}.${c.consumes ? ` You're handed ${a.tasks.length} × ${getItem(c.consumes).name}.` : ''}`, 'quest');
+        g.notify(tr`Flags mark the work: ${a.tasks.length} × ${L(c.label).toLowerCase()}.${c.consumes ? ` You're handed ${a.tasks.length} × ${getItem(c.consumes).name}.` : ''}`, 'quest');
         break;
       }
       case 'breakHorse': {
@@ -358,7 +359,7 @@ export class JobSystem {
         a.outlawId = `jobbounty_${hashString(o.id)}`;
         const camp = BOUNTY_CAMPS.find((c) => c.id === o.camp) ?? BOUNTY_CAMPS[0]!;
         this.setWaypoint({ x: camp.x * 16 + 8, y: camp.y * 16 + 8 });
-        g.notify(`Wanted ${t.bounty!.title} was seen ${camp.name}. Alive: hogtie and hand to a sheriff. Dead: claim here.`, 'quest');
+        g.notify(tr`Wanted ${L(t.bounty!.title)} was seen ${L(camp.name)}. Alive: hogtie and hand to a sheriff. Dead: claim here.`, 'quest');
         break;
       }
       case 'bartend':
@@ -391,7 +392,7 @@ export class JobSystem {
     this.stats.done++;
     this.stats.earned = Math.round((this.stats.earned + pay) * 100) / 100;
     g.setFlag('jobs_done', this.stats.done);
-    g.notify(`${t.title}: done. Paid $${pay.toFixed(2)}.`, 'good');
+    g.notify(tr`${L(t.title)}: done. Paid $${pay.toFixed(2)}.`, 'good');
     g.audio.play('coin');
     this.cleanup();
     return pay;
@@ -408,7 +409,7 @@ export class JobSystem {
     if (t.faction) g.rep.add(t.faction, -1);
     if (t.deliver) g.player.inv.remove(t.deliver.cargo, Math.min(t.deliver.qty, g.player.inv.count(t.deliver.cargo)));
     this.stats.failed++;
-    g.notify(`${t.title}: ${reason}`, 'bad');
+    g.notify(tr`${L(t.title)}: ${L(reason)}`, 'bad');
     this.cleanup();
   }
 
@@ -577,7 +578,7 @@ export class JobSystem {
             a.misses = (a.misses ?? 0) + m;
             g.advanceTime(BALANCE.jobs.taskMinutes[c.task] ?? 10);
             const left = a.tasks!.filter((x) => !x.done).length;
-            if (left) g.notify(`${c.label}: done. ${left} to go.`, 'info');
+            if (left) g.notify(tr`${L(c.label)}: done. ${left} to go.`, 'info');
             else this.complete(strikePerformance(a.hits, a.misses));
           }),
         });
@@ -724,7 +725,7 @@ export class JobSystem {
         s.y = corral.y + this.rng.range(0, corral.h);
         s.state = 'graze';
         s.speed = 0;
-        g.notify(`Steer penned (${a.penned}/${a.offer.units}).`, 'good');
+        g.notify(tr`Steer penned (${a.penned}/${a.offer.units}).`, 'good');
         continue;
       }
       // Herding: a pushed steer drifts toward the gate it knows.
@@ -857,7 +858,7 @@ export class JobSystem {
               g.audio.play('coin');
             } else {
               wrong++;
-              g.notify(`Wrong pour. They wanted ${o.answer.toLowerCase()}.`, 'bad');
+              g.notify(tr`Wrong pour. They wanted ${L(o.answer).toLowerCase()}.`, 'bad');
             }
             next(i + 1);
           },
@@ -943,7 +944,7 @@ export class JobSystem {
     const e = g.economy;
     const opts: { label: string; enabled: boolean; run: () => void }[] = [];
     const owed = e.arrears();
-    if (owed > 0) opts.push({ label: `Settle taxes ($${owed.toFixed(2)})`, enabled: g.player.money > 0, run: () => g.notify(`Paid $${e.settleTaxes().toFixed(2)} in taxes.`, 'info') });
+    if (owed > 0) opts.push({ label: `Settle taxes ($${owed.toFixed(2)})`, enabled: g.player.money > 0, run: () => g.notify(tr`Paid $${e.settleTaxes().toFixed(2)} in taxes.`, 'info') });
     for (const plot of PLOTS.filter((p) => p.soldAt === sid)) {
       const owned = !!e.property[plot.id];
       opts.push({
@@ -952,7 +953,7 @@ export class JobSystem {
         run: () => {
           const err = e.buyPlot(plot.id);
           if (err) return g.notify(err, 'bad');
-          g.notify(`The deed to ${plot.name} is yours. Ride out and build on it.`, 'good');
+          g.notify(tr`The deed to ${L(plot.name)} is yours. Ride out and build on it.`, 'good');
           this.setWaypoint(this.plotPx(plot));
         },
       });

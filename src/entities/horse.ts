@@ -21,6 +21,7 @@ import type { Renderer } from '../render/renderer.ts';
 import { F, OBJ } from '../world/tiles.ts';
 import { Entity } from './entity.ts';
 import type { Player } from './player.ts';
+import { L, tr } from '../core/i18n.ts';
 
 const GAIT_LEVELS: Gait[] = ['halt', 'walk', 'trot', 'canter', 'gallop'];
 
@@ -324,7 +325,7 @@ export class HorseEntity extends Entity {
       } else if (this.brain.state === 'flee' && prev !== 'flee' && this.rng.chance(0.5)) {
         game.audio.neigh(this.x, this.y, true);
       }
-      if (this.brain.state === 'come' && this.data.owner === 'player') game.notify(`${this.data.name} heard your whistle.`, 'horse');
+      if (this.brain.state === 'come' && this.data.owner === 'player') game.notify(tr`${this.data.name} heard your whistle.`, 'horse');
     }
     const b = this.brain;
     let target = b.target;
@@ -530,7 +531,7 @@ export class HorseEntity extends Entity {
         // Calming while bolting: bond helps.
         if (this.rng.chance(0.35 + bondLevel(d) * 0.1)) {
           this.bolting = 0;
-          game.notify(`You rein ${d.name} in.`, 'horse');
+          game.notify(tr`You rein ${d.name} in.`, 'horse');
         }
       }
       return;
@@ -571,14 +572,14 @@ export class HorseEntity extends Entity {
         if (this.rng.chance(dt * 0.4)) {
           penalizeBond(d, 'overexertion');
           injure(d, 'strain', 20, game.clock.day, 'overexertion');
-          game.notify(`${d.name} is overexerted and pulls up lame.`, 'bad');
+          game.notify(tr`${d.name} is overexerted and pulls up lame.`, 'bad');
           this.gaitLevel = 1;
         }
       } else {
         gait = 'trot';
         if (this.gaitLevel > 2) {
           this.gaitLevel = 2;
-          game.notify(`${d.name} is blown and drops to a trot.`, 'horse');
+          game.notify(tr`${d.name} is blown and drops to a trot.`, 'horse');
         }
       }
     }
@@ -586,7 +587,7 @@ export class HorseEntity extends Entity {
     if ((gait === 'gallop' || gait === 'canter') && rs.obedience < 0.3 && this.rng.chance(dt * 0.2)) {
       gait = 'trot';
       this.gaitLevel = Math.min(this.gaitLevel, 2);
-      game.notify(`${d.name} ignores your heels.`, 'horse');
+      game.notify(tr`${d.name} ignores your heels.`, 'horse');
     }
 
     // Terrain and slope.
@@ -602,7 +603,7 @@ export class HorseEntity extends Entity {
     if (t.water && d.dislike === 'water' && this.speed > 5 && this.rng.chance(dt * 0.8) && rs.obedience < 0.7) {
       targetSpeed = 0;
       d.stress = clamp(d.stress + 10, 0, 100);
-      game.notify(`${d.name} balks at the water.`, 'horse');
+      game.notify(tr`${d.name} balks at the water.`, 'horse');
     }
 
     const acc = targetSpeed > this.speed ? rs.accel : rs.decel;
@@ -651,7 +652,7 @@ export class HorseEntity extends Entity {
     // Rough-ground injury risk at speed.
     if (this.gait === 'gallop' && t.rough > 0.3 && this.rng.chance(dt * t.rough * (1.1 - rs.terrain) * 0.05)) {
       injure(d, this.rng.chance(0.6) ? 'stoneBruise' : 'limp', 18 + this.rng.range(0, 20), game.clock.day, 'rough ground at a gallop');
-      game.notify(`${d.name} stumbles on the rocks and comes up sore.`, 'bad');
+      game.notify(tr`${d.name} stumbles on the rocks and comes up sore.`, 'bad');
       this.speed *= 0.5;
     }
     // Downhill stumble at full gallop on steep ground.
@@ -667,7 +668,7 @@ export class HorseEntity extends Entity {
           if (this.rng.chance(0.4 * (1 - rs.obedience))) this.throwRider(game, 'reared and threw you');
         } else {
           this.bolting = 2.5;
-          game.notify(`${d.name} bolts! (${typeof document !== 'undefined' && document.body.classList.contains('has-touch') ? 'Frear or E' : 'Ctrl / E'} to calm)`, 'bad');
+          game.notify(tr`${d.name} bolts! (${typeof document !== 'undefined' && document.body.classList.contains('has-touch') ? L('Slow') + ' / E' : 'Ctrl / E'} to calm)`, 'bad');
         }
       }
     }
@@ -717,7 +718,7 @@ export class HorseEntity extends Entity {
       this.speed *= 0.2;
       this.rearT = 0.7;
       d.stress = clamp(d.stress + 12, 0, 100);
-      game.notify(`${d.name} refuses the jump!`, 'horse');
+      game.notify(tr`${d.name} refuses the jump!`, 'horse');
       if (this.rng.chance(0.25 * (1 - this.stats.obedience))) this.throwRider(game, 'refused the jump and you went over its head');
     }
   }
@@ -749,7 +750,7 @@ export class HorseEntity extends Entity {
   throwRider(game: Game, why: string): void {
     const r = this.rider;
     if (!r) return;
-    game.notify(`${this.data.name} ${why}!`, 'bad');
+    game.notify(tr`${this.data.name} ${L(why)}!`, 'bad');
     game.ui.banner('Thrown from the saddle', 2.5);
     addHistory(this.data, game.clock.day, `Threw the rider: ${why}.`);
     r.dismount(game, true);

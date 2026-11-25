@@ -15,6 +15,7 @@ import { Inventory } from '../systems/inventory.ts';
 import { Skills } from '../systems/skills.ts';
 import { Entity } from './entity.ts';
 import type { HorseEntity } from './horse.ts';
+import { L, tr } from '../core/i18n.ts';
 
 /** Slip-around candidates (radians off the intended direction), by which side of the obstacle is open. */
 const SLIP_BOTH = [0.7, -0.7, 1.3, -1.3];
@@ -278,11 +279,11 @@ export class Player extends Entity {
     if (d.owner !== 'player' && d.owner !== 'wild' && !d.rentalUntilDay) {
       // Riding off on someone else's horse is horse theft.
       game.law.reportCrime('horseTheft', this.x, this.y, d.owner);
-      game.notify(`You've taken ${d.name}. That's horse theft.`, 'law');
+      game.notify(tr`You've taken ${d.name}. That's horse theft.`, 'law');
       d.owner = 'stolen';
     }
     if (d.age < 2.5) {
-      game.notify(`${d.name} is too young to carry a rider.`, 'horse');
+      game.notify(tr`${d.name} is too young to carry a rider.`, 'horse');
       return;
     }
     if (d.tameness < 100) {
@@ -290,13 +291,13 @@ export class Player extends Entity {
       return;
     }
     if (!d.gear.saddle && d.owner === 'player' && d.training.saddle < 60) {
-      game.notify(`${d.name} has no saddle. Riding bareback is unsteady.`, 'horse');
+      game.notify(tr`${d.name} has no saddle. Riding bareback is unsteady.`, 'horse');
     }
     if (d.tiedAt) d.tiedAt = null;
     h.leading = false;
     // Nervous, low-bond horses sidestep away from a mount attempt.
     if (h.stats.obedience < 0.25 && h.rng.chance(0.5)) {
-      game.notify(`${d.name} sidesteps away from you.`, 'horse');
+      game.notify(tr`${d.name} sidesteps away from you.`, 'horse');
       h.heading += 0.8;
       h.speed = 20;
       return;
