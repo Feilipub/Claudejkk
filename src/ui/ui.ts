@@ -19,7 +19,7 @@ import { appraise } from '../horse/economy.ts';
 import { bondLevel, maxHealth, maxStamina, rawStat, rideStats, statWord } from '../horse/stats.ts';
 import { horseSprites, HW, HH } from '../render/horseSprite.ts';
 import { portrait, PORTRAIT_H, PORTRAIT_W } from '../render/portrait.ts';
-import { detectLocale, L, LOCALES, setLocale, tr, translateDom, type Locale } from '../core/i18n.ts';
+import { detectLocale, L, LOCALES, setLocale, tempString, tr, translateDom, type Locale } from '../core/i18n.ts';
 import { PT_BR } from '../data/locale/pt-BR.ts';
 import { GROUND } from '../world/tiles.ts';
 import type { OpenDialogue } from '../systems/dialogue.ts';
@@ -213,7 +213,7 @@ export class UI {
     const reg = REGIONS.find((r) => r.id === g.currentRegion)!;
     const w = g.weather.current;
     const wx = w.kind === 'clear' ? 'Clear' : w.kind[0]!.toUpperCase() + w.kind.slice(1);
-    el('clock').innerHTML = `<div class="date">${g.clock.dateString()}</div>${g.clock.timeString()} · ${Math.round(g.temperatureHere)}°F · ${L(wx)}<br>${L(reg.name)}`;
+    el('clock').innerHTML = `<div class="date">${g.clock.dateString()}</div>${g.clock.timeString()} · ${tempString(g.temperatureHere)} · ${L(wx)}<br>${L(reg.name)}`;
     el('money').textContent = money(p.money);
     const wanted = g.law.get(g.currentRegion);
     el('wanted').innerHTML = wanted.level >= 2 ? `<div class="wanted">WANTED · ${money(wanted.bounty)}</div>` : '';
@@ -1516,7 +1516,7 @@ export class UI {
   // --- Camp & sleep ------------------------------------------------------------------------------------
   openCamp(): void {
     const g = this.game;
-    const p = this.modal('camp', `<h2>Camp</h2><div class="sub">${g.clock.timeString()} · ${Math.round(g.temperatureHere)}°F</div><div style="text-align:center" id="cb"></div>`, 520);
+    const p = this.modal('camp', `<h2>Camp</h2><div class="sub">${g.clock.timeString()} · ${tempString(g.temperatureHere)}</div><div style="text-align:center" id="cb"></div>`, 520);
     const cb = p.querySelector('#cb') as HTMLElement;
     button(cb, 'Sleep…', 'btn gold').onclick = () => this.openSleep('camp');
     button(cb, 'Cook raw food', 'btn').onclick = () => this.notify(g.camp.cookAll(), 'info');

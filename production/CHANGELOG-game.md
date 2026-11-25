@@ -188,7 +188,8 @@ Five specialists, each owning one area: horses, characters and portraits, terrai
 - Horses wake when you walk up or whistle; "Fed/Watered" labels; rider sprites carry their own legs.
 
 ### Localisation
-- `core/i18n.ts` (English keys → dictionary, `L()`, tr``, `translateDom`), language setting (auto-detected), 1,739 strings extracted from data and being translated to pt-BR in per-slice dictionary files.
+- `core/i18n.ts` (English keys → dictionary, `L()`, tr``, `translateDom`), language setting (auto-detected), 1,739 strings extracted from data and translated to pt-BR in per-slice dictionary files.
+- **pt-BR complete (2026-11-25):** all 11 data slices landed (dialogue 404 lines, player options 324, barks 179, quests 171, lore 56, people 107, items 199, world/jobs/horses/wildlife/shops 306) plus the whole interface: menus, settings, creator, HUD, prompts, satchel, horse screen, shops and stables, journal, character sheet, camp, saves, blackjack, keyboard help. Composite strings build `{n}` keys through tr``; panels are translated after they fill themselves; dates read day-first with Portuguese months, the clock is 24-hour and temperatures are in °C outside English. `tools/i18n-ui-keys.mjs` (a pt-BR screen tour) is the guard: what it still lists are proper names and already-translated composites.
 
 ### Tooling and QA
 - `tools/playd.mjs` phone emulation (touch-only playtests), `tools/phone-scene.mjs`, `WF_OUT` parallel builds, `WF_DUMP_SAVE`/`WF_SAVE` for post-story playtests, `tools/i18n-keys.mjs`.

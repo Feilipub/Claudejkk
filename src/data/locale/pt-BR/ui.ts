@@ -91,7 +91,7 @@ export const UI_PT: Record<string, string> = {
   'Ride to Larkspur': 'Cavalgar até Larkspur', 'Bandana': 'Bandana', 'Larkspur, Calder Territory — April 3rd, 1888.': 'Larkspur, Território de Calder — 3 de abril de 1888.',
   'Bust! You lose {0}.': 'Estourou! Você perde {0}.', 'Blackjack! You win {0}.': 'Vinte e um! Você ganha {0}.', 'You win {0}.': 'Você ganha {0}.', 'Dealer wins with {0}.': 'A banca ganha com {0}.',
   // HUD: weather, gaits, horse mood labels; journal chrome
-  'Clear': 'Céu limpo', 'Cloudy': 'Nublado', 'Rain': 'Chuva', 'Storm': 'Tempestade', 'Fog': 'Neblina', 'Snow': 'Neve', 'Blizzard': 'Nevasca', 'Dust': 'Poeira',
+  'Clear': 'Limpo', 'Cloudy': 'Nublado', 'Rain': 'Chuva', 'Storm': 'Tempestade', 'Fog': 'Neblina', 'Snow': 'Neve', 'Blizzard': 'Nevasca', 'Dust': 'Poeira',
   'Walk': 'Passo', 'Trot': 'Trote', 'Canter': 'Meio-galope', 'Gallop': 'Galope',
   'Standing quietly': 'Parado, tranquilo', 'Grazing': 'Pastando', 'Drinking': 'Bebendo', 'Wandering': 'Vagando', 'Resting': 'Descansando', 'Sleeping': 'Dormindo', 'Following you': 'Seguindo você',
   'On the lead': 'No cabresto', 'Coming to your whistle': 'Vindo ao seu assobio', 'Fleeing': 'Fugindo', 'Spooked!': 'Assustado!', 'Tied up': 'Amarrado', 'Investigating something': 'Investigando algo',

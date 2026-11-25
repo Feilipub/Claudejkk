@@ -95,3 +95,8 @@ export function translateDom(root: ParentNode & Node): void {
     });
   }
 }
+
+/** Temperature for display: Fahrenheit in English (the period's unit), Celsius elsewhere. */
+export function tempString(fahrenheit: number): string {
+  return getLocale() === 'en' ? `${Math.round(fahrenheit)}°F` : `${Math.round(((fahrenheit - 32) * 5) / 9)}°C`;
+}
