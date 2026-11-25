@@ -9,6 +9,7 @@ import { POIS, SETTLEMENTS } from '../data/world.ts';
 import type { Game } from '../game.ts';
 import { bondLevel } from '../horse/stats.ts';
 import { applyEffects, evalCond } from './script.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export interface QuestState {
   status: 'active' | 'completed' | 'failed';
@@ -53,7 +54,7 @@ export class QuestSystem {
     const existing = this.states[id];
     if (existing && (existing.status === 'active' || (existing.status === 'completed' && !d.repeatable))) return;
     this.states[id] = { status: 'active', stage: d.stages[0]!.id, progress: {}, done: [], log: [], startDay: this.game.clock.day, base: {} };
-    this.game.notify(`New ${d.kind === 'main' ? 'story mission' : 'quest'}: ${d.title}`, 'quest');
+    this.game.notify(d.kind === 'main' ? tr`New story mission: ${L(d.title)}` : tr`New quest: ${L(d.title)}`, 'quest');
     this.game.audio.play('quest');
     if (!this.tracked || d.kind === 'main') this.tracked = id;
     this.enterStage(id, d.stages[0]!);
@@ -93,7 +94,7 @@ export class QuestSystem {
       const obj = this.stageDef(id)?.objectives.find((o) => o.id === objId);
       if (!obj) return;
       st.done.push(objId);
-      if (!obj.hidden) this.game.notify(`✓ ${obj.text}`, 'quest');
+      if (!obj.hidden) this.game.notify(`✓ ${L(obj.text)}`, 'quest');
     }
     this.checkStage(id);
   }
@@ -126,7 +127,7 @@ export class QuestSystem {
       const ns = d.stages.find((x) => x.id === next);
       if (ns) {
         this.enterStage(id, ns);
-        this.game.notify(`${d.title}: ${ns.objectives[0]?.text ?? 'Updated'}`, 'quest');
+        this.game.notify(`${L(d.title)}: ${L(ns.objectives[0]?.text ?? 'Updated')}`, 'quest');
         return;
       }
     }
@@ -143,7 +144,7 @@ export class QuestSystem {
     if (r.items) for (const [it, q] of Object.entries(r.items)) g.giveItem(it, q);
     if (r.rep) for (const [k, v] of Object.entries(r.rep)) g.rep.add(k as never, v as number);
     if (r.honor) g.rep.add('honor', r.honor);
-    g.notify(`Completed: ${d.title}${r.money ? ` (+${r.money} dollars)` : ''}`, 'quest');
+    g.notify(tr`Completed: ${L(d.title)}` + (r.money ? ' ' + tr`(+${r.money} dollars)` : ''), 'quest');
     g.audio.play('quest');
     g.setFlag(`quest_done_${id}`, true);
     if (this.tracked === id) this.tracked = this.active().find((q) => q.kind === 'main')?.id ?? this.active()[0]?.id ?? null;

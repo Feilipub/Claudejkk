@@ -3,6 +3,7 @@
  * used by lighting, NPC schedules, animal activity and shops.
  */
 import { BALANCE } from '../data/balance.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export class GameClock {
   /** Total game minutes since the story began (Day 1, 07:00). */
@@ -49,7 +50,7 @@ export class GameClock {
   timeString(): string {
     const h = Math.floor(this.hour);
     const m = Math.floor((this.minutes % 60) / 10) * 10;
-    const ampm = h >= 12 ? 'pm' : 'am';
+    const ampm = L(h >= 12 ? 'pm' : 'am');
     const h12 = h % 12 === 0 ? 12 : h % 12;
     return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
   }
@@ -65,7 +66,7 @@ export class GameClock {
       mo = (mo + 1) % 12;
       if (mo === 0) y++;
     }
-    return `${months[mo]} ${d}, ${y}`;
+    return tr`${L(months[mo]!)} ${d}, ${y}`;
   }
   /** Named part of the day used by schedules. */
   get period(): 'night' | 'dawn' | 'morning' | 'afternoon' | 'evening' {

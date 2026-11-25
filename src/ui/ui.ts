@@ -234,15 +234,15 @@ export class UI {
       if (o) {
         const t = g.quests.objectiveTarget(o);
         if (t) dist = `${(Math.hypot(t.x - p.x, t.y - p.y) / 16 * 2 / 1609 * 1000).toFixed(o ? 0 : 0)}`;
-        if (t) dist = `${Math.round(Math.hypot(t.x - p.x, t.y - p.y) / 16 * 2)} yds`;
+        if (t) dist = tr`${Math.round(Math.hypot(t.x - p.x, t.y - p.y) / 16 * 2)} yds`;
       }
       const prog = o && o.count && o.count > 1 ? ` (${st.progress[o.id] ?? 0}/${o.count})` : '';
       objEl.style.display = '';
-      const wp = g.waypoint ? `<div class="dist">◆ Waypoint ${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds</div>` : '';
+      const wp = g.waypoint ? `<div class="dist">◆ ${L('Waypoint')} ${tr`${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds`}</div>` : '';
       objEl.innerHTML = `<div class="qt">${esc(L(q.title))}</div>${o ? esc(L(o.text)) + prog : L('Complete the stage')}${dist ? `<div class="dist">${dist}</div>` : ''}${wp}${this.jobLine()}`;
     } else if (g.waypoint || g.jobs?.active) {
       objEl.style.display = '';
-      objEl.innerHTML = `${g.waypoint ? `<div class="qt">Waypoint</div><div class="dist">${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds</div>` : ''}${this.jobLine()}`;
+      objEl.innerHTML = `${g.waypoint ? `<div class="qt">${L('Waypoint')}</div><div class="dist">${tr`${Math.round(Math.hypot(g.waypoint.x - p.x, g.waypoint.y - p.y) / 8)} yds`}</div>` : ''}${this.jobLine()}`;
     } else objEl.style.display = 'none';
   }
 
@@ -253,7 +253,7 @@ export class UI {
     if (!job) return '';
     const t = g.jobs.template(job.offer.templateId);
     const left = Math.round(job.deadline - g.clock.minutes);
-    return `<div class="qt" style="margin-top:4px">Job · ${esc(L(t.title))}</div>${esc(g.jobs.detail(job.offer))}<div class="dist">${left > 0 ? `${left} min left` : 'overdue'}</div>`;
+    return `<div class="qt" style="margin-top:4px">${L('Job')} · ${esc(L(t.title))}</div>${esc(g.jobs.detail(job.offer))}<div class="dist">${left > 0 ? tr`${left} min left` : L('overdue')}</div>`;
   }
 
   private updateCores(): void {
@@ -574,7 +574,7 @@ export class UI {
     const n = d.npc;
     const occ = n.occupation === 'saloongirl' ? 'hostess' : n.occupation;
     const last = this.dlgPage >= this.dlgPages.length - 1;
-    this.dialogueEl.innerHTML = `<div class="panel dlg-grid"><canvas class="portrait" width="${PORTRAIT_W}" height="${PORTRAIT_H}"></canvas><div><div class="speaker">${esc(n.name)}<small>${esc(occ)}</small></div><div class="text">${esc(this.dlgPages[this.dlgPage] ?? '')}</div><div id="opts"></div></div></div>`;
+    this.dialogueEl.innerHTML = `<div class="panel dlg-grid"><canvas class="portrait" width="${PORTRAIT_W}" height="${PORTRAIT_H}"></canvas><div><div class="speaker">${esc(n.name)}<small>${esc(L(occ))}</small></div><div class="text">${esc(this.dlgPages[this.dlgPage] ?? '')}</div><div id="opts"></div></div></div>`;
     const pc = (this.dialogueEl.querySelector('.portrait') as HTMLCanvasElement).getContext('2d')!;
     pc.drawImage(portrait(n.look, n.id, n.occupation === 'child') as CanvasImageSource, 0, 0);
     const box = this.dialogueEl.querySelector('#opts') as HTMLElement;
@@ -607,7 +607,7 @@ export class UI {
   openPause(): void {
     const p = this.modal(
       'pause',
-      `<h2>Paused</h2><div class="sub">${esc(this.game.clock.dateString())} · ${Math.floor(this.game.playtime / 60)} min played</div>
+      `<h2>Paused</h2><div class="sub">${esc(this.game.clock.dateString())} · ${tr`${Math.floor(this.game.playtime / 60)} min played`}</div>
       <div style="text-align:center" id="pb"></div>
       <h3>Controls</h3>${document.body.classList.contains('has-touch') ? `<div class="help">Left thumb — drag to move / steer<br>E — talk, interact (or tap a prompt line)<br>Montar — mount / dismount<br>Correr — run / spur up a gait<br>Frear — slow / calm a bolting horse<br>Pular — jump (trot or faster)<br>Assobio — whistle for your horse<br>Arma — draw / holster<br>Atirar — fire where you face (or tap a spot)<br>Recarregar — reload<br>◀ ▶ — cycle prompt options<br>Bottom bar — menu, map, items, horse, journal, camp</div><h3>Keyboard</h3>` : ''}<div class="help">
       WASD — move / steer horse<br>Shift — run / spur up a gait<br>Ctrl / C — slow down<br>Q — rein back (mounted)<br>Space — jump (canter+)<br>F — mount / dismount<br>H — whistle for your horse<br>E / 1–6 — interact<br>
@@ -974,7 +974,7 @@ export class UI {
     if (!shopOpenAt(def, g.clock.hour)) {
       const [o] = shopHours(def);
       const h12 = o % 12 === 0 ? 12 : o % 12;
-      this.notify(tr`${def.name} is closed. Opens at ${h12} ${o < 12 ? 'a.m.' : 'p.m.'}`, 'info');
+      this.notify(tr`${def.name} is closed. Opens at ${h12} ${L(o < 12 ? 'a.m.' : 'p.m.')}`, 'info');
       return;
     }
     if (g.dialogue.open) g.dialogue.close();
@@ -1453,7 +1453,7 @@ export class UI {
         const def = g.content.NPCS.find((n) => n.id === q.giver);
         const loc = g.npcLocation(q.giver!);
         const where = SETTLEMENTS.find((st) => st.id === def?.settlement)?.name ?? 'the territory';
-        row(`<div class="nm">${esc(def?.name ?? q.giver!)} <span class="small-note">${esc(where)}${loc ? ` · ${dist(loc.x, loc.y)} yds ${dirName(loc.x, loc.y)}` : ''}</span></div><div class="ds">${esc(def?.occupation ?? '')}</div>`, loc);
+        row(`<div class="nm">${esc(def?.name ?? q.giver!)} <span class="small-note">${esc(where)}${loc ? ` · ${dist(loc.x, loc.y)} yds ${dirName(loc.x, loc.y)}` : ''}</span></div><div class="ds">${esc(L(def?.occupation ?? ''))}</div>`, loc);
       }
     }
     // Notice boards with work today.
@@ -1497,12 +1497,12 @@ export class UI {
       })
       .join('');
     const skills = (Object.keys(SKILL_INFO) as SkillId[])
-      .map((s) => `<div class="statline" title="${esc(SKILL_INFO[s].perLevel)}"><span>${SKILL_INFO[s].name} ${p.skills.level(s)}</span><div class="statbar"><i style="width:${p.skills.progress(s) * 100}%"></i></div><span class="small-note">${Math.round(p.skills.xp[s])} xp</span></div>`)
+      .map((s) => `<div class="statline" title="${esc(SKILL_INFO[s].perLevel)}"><span>${L(SKILL_INFO[s].name)} ${p.skills.level(s)}</span><div class="statbar"><i style="width:${p.skills.progress(s) * 100}%"></i></div><span class="small-note">${Math.round(p.skills.xp[s])} xp</span></div>`)
       .join('');
     const wanted = Object.entries(g.law.wanted).filter(([, w]) => w.level >= 1).map(([r, w]) => `<div class="row"><span>${REGIONS.find((x) => x.id === r)?.name}</span><span class="pr">${money(w.bounty)} · ${w.crimes.slice(-3).join(', ')}</span></div>`).join('');
     this.modal(
       'character',
-      `<h2>${esc(p.name)}</h2><div class="sub">${g.rep.honorTitle()} · ${Math.round(g.playtime / 60)} minutes on the frontier</div>
+      `<h2>${esc(p.name)}</h2><div class="sub">${L(g.rep.honorTitle())} · ${tr`${Math.round(g.playtime / 60)} minutes on the frontier`}</div>
       <div class="grid2"><div><h3>Reputation</h3>${reps}<h3>Law</h3>${wanted || '<p class="muted">No outstanding bounties.</p>'}</div>
       <div><h3>Skills</h3>${skills}<p class="small-note">Skills improve with practice: riding, shooting, caring for horses, hunting and camping.</p>
       <h3>Condition</h3><div class="kv"><b>Health</b><span>${Math.round(p.stats.health)}</span><b>Fed</b><span>${Math.round(p.stats.hunger)}%</span><b>Watered</b><span>${Math.round(p.stats.thirst)}%</span><b>Rest</b><span>${Math.round(p.stats.energy)}%</span><b>Discoveries</b><span>${g.discovered.size}</span><b>Horses owned</b><span>${g.ownedHorses().length}</span></div></div></div>`,
@@ -1523,7 +1523,7 @@ export class UI {
   }
   openSleep(where: 'camp' | 'bed'): void {
     const g = this.game;
-    const p = this.modal('sleep', `<h2>Rest</h2><div class="sub">${where === 'bed' ? 'A real bed.' : g.clock.isNight ? 'Under the stars.' : 'A bedroll in the shade.'} It's ${g.clock.timeString()}.</div><div style="text-align:center" id="sb"></div>`, 480);
+    const p = this.modal('sleep', `<h2>Rest</h2><div class="sub">${L(where === 'bed' ? 'A real bed.' : g.clock.isNight ? 'Under the stars.' : 'A bedroll in the shade.')} ${tr`It's ${g.clock.timeString()}.`}</div><div style="text-align:center" id="sb"></div>`, 480);
     const sb = p.querySelector('#sb') as HTMLElement;
     for (const h of [2, 4, 8]) button(sb, `${h} hours`, 'btn').onclick = () => { this.closeModal(); g.sleep(h); };
     button(sb, 'Until dawn', 'btn gold').onclick = () => {
@@ -1565,9 +1565,9 @@ export class UI {
     let phase: 'bet' | 'play' | 'done' = 'bet';
     let msg = 'Place your bet.';
     const render = () => {
-      const p = this.modal('blackjack', `<h2>Blackjack</h2><div class="sub">${money(g.player.money)} · Dealer stands on 17</div>
-        <div style="text-align:center"><div class="small-note">Dealer ${phase === 'play' ? '' : val(dealer)}</div><div class="cards">${dealer.map((c, i) => cardHtml(c, phase === 'play' && i === 1)).join('')}</div>
-        <div class="small-note">You ${val(player) || ''}</div><div class="cards">${player.map((c) => cardHtml(c)).join('')}</div><p style="font-size:18px">${esc(msg)}</p><div id="bj"></div></div>`, 600);
+      const p = this.modal('blackjack', `<h2>Blackjack</h2><div class="sub">${money(g.player.money)} · ${L('Dealer stands on 17')}</div>
+        <div style="text-align:center"><div class="small-note">${L('Dealer')} ${phase === 'play' ? '' : val(dealer)}</div><div class="cards">${dealer.map((c, i) => cardHtml(c, phase === 'play' && i === 1)).join('')}</div>
+        <div class="small-note">${L('You')} ${val(player) || ''}</div><div class="cards">${player.map((c) => cardHtml(c)).join('')}</div><p style="font-size:18px">${esc(msg)}</p><div id="bj"></div></div>`, 600);
       const bj = p.querySelector('#bj') as HTMLElement;
       if (phase !== 'play') {
         for (const b of [1, 5, 10]) {
@@ -1592,7 +1592,7 @@ export class UI {
           g.audio.play('cards');
           if (val(player) > 21) {
             phase = 'done';
-            msg = `Bust! You lose ${money(bet)}.`;
+            msg = tr`Bust! You lose ${money(bet)}.`;
           }
           render();
         };
@@ -1606,14 +1606,14 @@ export class UI {
       phase = 'done';
       if (pv === 21 && player.length === 2) {
         g.player.money += bet * 2.5;
-        msg = `Blackjack! You win ${money(bet * 1.5)}.`;
+        msg = tr`Blackjack! You win ${money(bet * 1.5)}.`;
       } else if (dv > 21 || pv > dv) {
         g.player.money += bet * 2;
-        msg = `You win ${money(bet)}.`;
+        msg = tr`You win ${money(bet)}.`;
       } else if (pv === dv) {
         g.player.money += bet;
-        msg = 'Push.';
-      } else msg = `Dealer wins with ${dv}.`;
+        msg = L('Push.');
+      } else msg = tr`Dealer wins with ${dv}.`;
       g.audio.play('coin');
       render();
     };

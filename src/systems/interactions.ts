@@ -14,6 +14,7 @@ import type { Game } from '../game.ts';
 import { brushHorse, calmHorse, cleanHooves, feedHorse, petHorse, treatHorse, waterHorse } from '../horse/care.ts';
 import { grantBond } from '../horse/bonding.ts';
 import { F, G, O, OBJ } from '../world/tiles.ts';
+import { L, tr } from '../core/i18n.ts';
 
 export interface Action {
   label: string;
@@ -152,7 +153,7 @@ export class InteractionSystem {
     if (h.npcRiderLook) {
       return {
         title: 'Traveller',
-        subtitle: `Riding ${/^[AEIOU]/i.test(g.breedName(d.breedId)) ? 'an' : 'a'} ${g.breedName(d.breedId)}`,
+        subtitle: /^[AEIOU]/i.test(g.breedName(d.breedId)) ? tr`Riding an ${L(g.breedName(d.breedId))}` : tr`Riding a ${L(g.breedName(d.breedId))}`,
         x: h.x,
         y: h.y - 40,
         actions: [
@@ -169,13 +170,13 @@ export class InteractionSystem {
       const price = g.economy.horseAsk(shop, d);
       acts.push({ label: 'Inspect', run: () => g.ui.openHorse(h, { shop, price }) });
       acts.push({ label: `Buy for ${price} dollars`, enabled: p.money >= price, hint: 'You can\'t afford this horse.', run: () => g.ui.openHorse(h, { shop, price }) });
-      return { title: d.name, subtitle: `For sale · ${g.horseSummary(h)}`, x: h.x, y: h.y - 30, actions: acts };
+      return { title: d.name, subtitle: tr`For sale · ${g.horseSummary(h)}`, x: h.x, y: h.y - 30, actions: acts };
     }
     if (d.owner === 'wild') {
       if (g.taming.roped === h) acts.push({ label: 'Calm (approach slowly)', run: () => g.notify(g.taming.calm(h), 'horse') });
       if (d.tameness >= 100) acts.push({ label: 'Lead', run: () => this.toggleLead(h) });
       acts.push({ label: 'Inspect', run: () => g.ui.openHorse(h) });
-      return { title: d.tag === 'pale_mare' ? 'The Pale Mare' : `Wild ${g.breedName(d.breedId)}`, subtitle: d.tameness >= 100 ? 'Unclaimed' : `Wild · tameness ${Math.round(d.tameness)}%`, x: h.x, y: h.y - 30, actions: acts };
+      return { title: d.tag === 'pale_mare' ? 'The Pale Mare' : tr`Wild ${L(g.breedName(d.breedId))}`, subtitle: d.tameness >= 100 ? 'Unclaimed' : tr`Wild · tameness ${Math.round(d.tameness)}%`, x: h.x, y: h.y - 30, actions: acts };
     }
     if (!owned) {
       acts.push({ label: 'Inspect', run: () => g.ui.openHorse(h) });
@@ -190,7 +191,7 @@ export class InteractionSystem {
       const fav = foods.find(([id]) => id === d.favoriteFood);
       const pick = fav ?? (d.hunger < 50 ? foods.find(([id]) => id === 'hay' || id === 'oats') : undefined) ?? foods[0]!;
       acts.push({
-        label: `Feed ${getItem(pick[0]).name}${foods.length > 1 ? ' (+)' : ''}`,
+        label: tr`Feed ${L(getItem(pick[0]).name)}` + (foods.length > 1 ? ' (+)' : ''),
         run: () => {
           const r = feedHorse(d, pick[0], day);
           if (r.ok) p.inv.remove(pick[0]);
@@ -265,7 +266,8 @@ export class InteractionSystem {
     const work = g.jobs.npcAction(n);
     if (work) acts.push(work);
     const occ = n.occupation === 'saloongirl' ? 'hostess' : n.occupation;
-    return { title: n.name, subtitle: occ.charAt(0).toUpperCase() + occ.slice(1), x: n.x, y: n.y - 30, actions: acts };
+    const occL = L(occ);
+    return { title: n.name, subtitle: occL.charAt(0).toUpperCase() + occL.slice(1), x: n.x, y: n.y - 30, actions: acts };
   }
 
   private lootTarget(n: Npc): InteractTarget | null {

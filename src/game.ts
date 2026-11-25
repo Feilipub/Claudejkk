@@ -48,6 +48,7 @@ import { SocialSystem } from './systems/social.ts';
 import type { UI } from './ui/ui.ts';
 import type { Spot, Corral } from './world/settlements.ts';
 import type { Building, World } from './world/world.ts';
+import { L, tr } from './core/i18n.ts';
 
 export interface NpcMemory {
   opinion: number;
@@ -583,7 +584,7 @@ export class Game {
   }
   horseSummary(h: HorseEntity): string {
     const d = h.data;
-    return `${getBreed(d.breedId).name} · ${d.sex} · ${Math.floor(d.age)} yrs`;
+    return tr`${L(getBreed(d.breedId).name)} · ${L(d.sex)} · ${Math.floor(d.age)} yrs`;
   }
   breedName(id: string): string {
     return getBreed(id).name;
@@ -728,7 +729,7 @@ export class Game {
     if (!this.content.LORE.some((l) => l.id === id)) return;
     this.loreUnlocked.add(id);
     const doc = this.content.LORE.find((l) => l.id === id)!;
-    this.notify(`Document added to journal: ${doc.title}`, 'quest');
+    this.notify(tr`Document added to journal: ${L(doc.title)}`, 'quest');
   }
   discoverPoi(id: string, silent = false): void {
     if (this.discovered.has(id)) return;
